@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block body %}
+    <h1>Dashboard</h1>
+
+    {% if user is empty %}
+        <p>Not logged in. <a href="{{ path('login') }}">Login with Keycloak</a></p>
+    {% else %}
+        <h2>User Info (from OIDC token)</h2>
+        <pre>{{ user|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+
+        <h3>Token Info</h3>
+        <pre>{{ token|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+
+        <p><a href="{{ path('logout') }}">Logout</a></p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Home{% endblock %}
+
+{% block body %}
+    <h1>Keycloak SSO Playground</h1>
+    <p>Welcome to the Symfony BFF (Backend-for-Frontend) demo.</p>
+    <p>
+        {% if app.session and app.session.get('oidc_user') is not null %}
+            You are logged in. <a href="{{ path('dashboard') }}">Go to Dashboard</a>
+        {% else %}
+            <a href="{{ path('login') }}">Login with Keycloak</a>
+        {% endif %}
+    </p>
+{% endblock %}

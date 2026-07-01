@@ -1,0 +1,13 @@
+knpu_oauth2_client:
+    clients:
+        keycloak_pkce:
+            type: keycloak_pkce
+            client_id: '%env(OAUTH_KEYCLOAK_CLIENT_ID)%'
+            client_secret: '%env(OAUTH_KEYCLOAK_CLIENT_SECRET)%'
+            redirect_route: login_check
+            redirect_params: {}
+            auth_server_url: '%env(OAUTH_KEYCLOAK_SERVER_URL)%'
+            realm: '%env(OAUTH_KEYCLOAK_REALM)%'
+            use_state: true
+            encryption_algorithm: RS256
+            encryption_key: null

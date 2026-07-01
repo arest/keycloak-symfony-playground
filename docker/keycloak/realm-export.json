@@ -4,7 +4,7 @@
   "displayName": "Playground",
   "displayNameHtml": "<div class=\"kc-logo-text\"><span>Playground</span></div>",
   "enabled": true,
-  "sslRequired": "external",
+  "sslRequired": "none",
   "registrationAllowed": false,
   "registrationEmailAsUsername": false,
   "rememberMe": false,

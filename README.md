@@ -1,3 +1,29 @@
+## Quick Start
+
+```bash
+# Start the stack
+docker compose up -d
+
+# Fix: master realm requires SSL by default → disable for local dev
+docker compose exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080 --realm master --user admin --password admin
+docker compose exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=none
+```
+
+**URLs & Credentials**
+
+| What | URL / Command |
+|------|---------------|
+| Keycloak Admin Console | http://localhost:8081 |
+| Master realm admin | `admin` / `admin` |
+| Playground realm admin | `admin1` / `admin1` |
+| Playground realm user | `user1` / `user1` |
+| Symfony app | http://localhost:8080 |
+
+> **Note:** The master realm SSL fix is stored in the PostgreSQL volume. It survives `restart` and `up/down`, but if you delete the volume (`docker compose down -v`) you need to run the fix again.
+
+---
+
 I'd like to implement a SSO with Keycloak as a full stack developer. Guide me through the process with a mental model. When I get the access token from the IdP, can I use it for the frontend -> backend REST API? How do I verify the access token is valid on backend side ? Should I cache it or verify it with IDP every time I receive it ?
 
 
