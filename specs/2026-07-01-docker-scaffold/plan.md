@@ -14,14 +14,20 @@
 - [x] Add `internal` network attachment
 
 ## Group 3: Configure Keycloak service
-- [ ] Add `keycloak` service to `docker-compose.yml` (`quay.io/keycloak/keycloak:26.x`)
-- [ ] Map port 8081 to container port 8080
-- [ ] Set environment variables: `KC_DB`, `KC_DB_URL`, `KC_DB_USERNAME`, `KC_DB_PASSWORD`, `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`
-- [ ] Mount `./docker/keycloak/` as `/opt/keycloak/data/import/` for realm auto-import
-- [ ] Set `KC_HOSTNAME_URL=http://localhost:8081` (proxy mode)
-- [ ] Add healthcheck (`curl -f http://localhost:8080/health || exit 1`)
-- [ ] Set `depends_on: postgres: condition: service_healthy`
-- [ ] Add `internal` network attachment
+- [x] Add `keycloak` service to `docker-compose.yml` (`quay.io/keycloak/keycloak:26.1`)
+- [x] Map port 8081 to container port 8080
+- [x] Set environment variables: `KC_DB`, `KC_DB_URL`, `KC_DB_USERNAME`, `KC_DB_PASSWORD`, `KC_BOOTSTRAP_ADMIN_USERNAME`, `KC_BOOTSTRAP_ADMIN_PASSWORD`
+- [x] Mount `./docker/keycloak/` as `/opt/keycloak/data/import/` for realm auto-import
+- [x] Set `KC_HOSTNAME=http://localhost:8081` (production mode)
+- [x] Add healthcheck (TCP port check via `/dev/tcp`)
+- [x] Set `depends_on: postgres: condition: service_healthy`
+- [x] Add `internal` network attachment
+
+**Learnings:**
+- `KC_HOSTNAME` is required in production mode (not `KC_HOSTNAME_URL`)
+- `KC_HTTP_ENABLED=true` needed to enable HTTP in production
+- Use `KC_BOOTSTRAP_ADMIN_USERNAME`/`KC_BOOTSTRAP_ADMIN_PASSWORD` (new) instead of deprecated `KEYCLOAK_ADMIN`/`KEYCLOAK_ADMIN_PASSWORD`
+- No `curl` in the Keycloak image — healthcheck uses bash `/dev/tcp` port check
 
 ## Group 4: Build PHP-FPM service
 - [ ] Create `docker/php/Dockerfile` from `php:8.3-fpm-alpine`

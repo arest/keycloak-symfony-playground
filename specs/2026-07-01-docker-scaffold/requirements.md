@@ -47,7 +47,7 @@ Nginx is configured with Symfony-compatible fastcgi rules (`try_files`, `SCRIPT_
 | Network name | `internal` | Simple, self-documenting name |
 | Volume name | `pgdata` | Consistent naming convention |
 | PostgreSQL auth | `keycloak` / `keycloak` (user/pass) | Shared credentials for dev; both apps use same user |
-| Keycloak admin | `admin` / `admin` (user/pass) | Simple dev credentials |
+| Keycloak admin | `admin` / `admin` (user/pass) | Simple dev credentials; use `KC_BOOTSTRAP_ADMIN_USERNAME`/`KC_BOOTSTRAP_ADMIN_PASSWORD` env vars |
 | PHP-FPM port | 9000 (default) | Standard; no need to change |
 | Keycloak DB | PostgreSQL via `KC_DB_URL` | Shared Postgres instance, separate database |
 | Healthchecks | All services | Ensures startup order and `docker compose up` reliability |
