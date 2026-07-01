@@ -30,30 +30,46 @@
 - No `curl` in the Keycloak image — healthcheck uses bash `/dev/tcp` port check
 
 ## Group 4: Build PHP-FPM service
-- [ ] Create `docker/php/Dockerfile` from `php:8.3-fpm-alpine`
-- [ ] Install PHP extensions: `pdo_pgsql`, `intl`, `mbstring`, `xml`, `curl`, `opcache`, `zip`
-- [ ] Install system packages: `git`, `unzip` (for Composer)
-- [ ] Enable Composer (via official installer)
-- [ ] Add `php` service to `docker-compose.yml`
-- [ ] Build context: `./docker/php`
-- [ ] Set environment variables (placeholder `DATABASE_URL` for Symfony)
-- [ ] Add healthcheck (e.g., `php-fpm -t || exit 1`)
-- [ ] Add `internal` network attachment
+- [x] Create `docker/php/Dockerfile` from `php:8.3-fpm-alpine`
+- [x] Install PHP extensions: `pdo_pgsql`, `intl`, `mbstring`, `xml`, `curl`, `opcache`, `zip`
+- [x] Install system packages: `git`, `unzip` (for Composer)
+- [x] Enable Composer (via official installer)
+- [x] Add `php` service to `docker-compose.yml`
+- [x] Build context: `./docker/php`
+- [x] Set environment variables (placeholder `DATABASE_URL` for Symfony)
+- [x] Add healthcheck (`php-fpm -t || exit 1`)
+- [x] Add `internal` network attachment
+
+**Learnings:**
+- PHP-FPM healthcheck uses `php-fpm -t` (syntax check) since there's no HTTP endpoint to probe
 
 ## Group 5: Configure Nginx service
-- [ ] Create `docker/nginx/default.conf` with Symfony reverse-proxy rules
-- [ ] Configure `fastcgi_pass php:9000`
-- [ ] Set root to `/var/www/symfony/public`
-- [ ] Map port 8080 to container port 80
-- [ ] Add `nginx` service to `docker-compose.yml`
-- [ ] Mount `./docker/nginx/default.conf` as read-only
-- [ ] Set `depends_on: php: condition: service_healthy`
-- [ ] Add `internal` network attachment
+- [x] Create `docker/nginx/default.conf` with Symfony reverse-proxy rules
+- [x] Configure `fastcgi_pass php:9000`
+- [x] Set root to `/var/www/symfony/public`
+- [x] Map port 8080 to container port 80
+- [x] Add `nginx` service to `docker-compose.yml`
+- [x] Mount `./docker/nginx/default.conf` as read-only
+- [x] Set `depends_on: php: condition: service_healthy`
+- [x] Add `internal` network attachment
+
+**Learnings:**
+- Nginx config was already written with proper Symfony fastcgi rules — just needed the service added to docker-compose.yml
 
 ## Group 6: Wire up networks, volumes & verify
-- [ ] Define `internal` network (driver: bridge, internal: false)
-- [ ] Define `pgdata` named volume
-- [ ] Verify `docker compose config` validates the compose file
-- [ ] Run `docker compose up --build` and confirm all 4 containers start healthy
-- [ ] Run `docker compose down -v` to clean up for next phase
-- [ ] Commit working state to `feature/docker-scaffold` branch
+- [x] Define `internal` network (driver: bridge, internal: false)
+- [x] Define `pgdata` named volume
+- [x] Verify `docker compose config` validates the compose file
+- [x] Run `docker compose up --build` and confirm all 4 containers start healthy
+- [x] Run `docker compose down -v` to clean up for next phase
+- [x] Commit working state to `feature/docker-scaffold` branch
+
+**Learnings:**
+- `pdo_pgsql` requires `postgresql-dev` (Alpine) for `libpq-fe.h` headers
+- `mbstring` requires `oniguruma-dev` (Alpine) for oniguruma regex library
+- `xml` requires `libxml2-dev` (Alpine)
+- `zip` requires `libzip-dev` (Alpine)
+- `intl` requires `icu-dev` (Alpine)
+- `curl` requires `curl-dev` (Alpine)
+- Alpine package names differ from Debian: `curl-dev` not `libcurl-dev`
+- Use `-j$(nproc)` with `docker-php-ext-install` for parallel compilation
