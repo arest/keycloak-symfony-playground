@@ -4,7 +4,6 @@ namespace App\Security;
 
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
-use KnpU\OAuth2ClientBundle\Security\User\OAuthUser;
 use League\OAuth2\Client\Provider\ResourceOwnerInterface;
 use League\OAuth2\Client\Token\AccessToken;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -28,6 +27,7 @@ class KeycloakAuthenticator extends OAuth2Authenticator implements Authenticatio
     public function __construct(
         private readonly ClientRegistry $clientRegistry,
         private readonly RouterInterface $router,
+        private readonly UserProvider $userProvider,
     ) {
     }
 
@@ -51,13 +51,13 @@ class KeycloakAuthenticator extends OAuth2Authenticator implements Authenticatio
         $request->attributes->set(self::ATTR_ACCESS_TOKEN, $accessToken);
         $request->attributes->set(self::ATTR_USER_DATA, $userData);
 
-        $username = $userData['preferred_username']
-            ?? $userData['email']
-            ?? $userData['sub']
-            ?? 'unknown';
+        // Create or update the local User entity from Keycloak token data.
+        // This happens here so the passport carries the Doctrine User object,
+        // and the user is persisted even before onAuthenticationSuccess.
+        $user = $this->userProvider->createOrUpdateFromKeycloak($userData);
 
         return new SelfValidatingPassport(
-            new UserBadge($username, fn () => new OAuthUser($username, ['ROLE_USER', 'ROLE_OAUTH_USER'])),
+            new UserBadge($user->getUserIdentifier(), fn () => $user),
         );
     }
 

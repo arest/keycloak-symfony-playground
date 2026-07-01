@@ -24,9 +24,6 @@ docker compose exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s 
 
 ---
 
-I'd like to implement a SSO with Keycloak as a full stack developer. Guide me through the process with a mental model. When I get the access token from the IdP, can I use it for the frontend -> backend REST API? How do I verify the access token is valid on backend side ? Should I cache it or verify it with IDP every time I receive it ?
-
-
 You're asking exactly the right questions. The biggest mental shift with OAuth2/OIDC is understanding **what each token is for** and **who is supposed to trust whom**.
 
 Let's build the mental model first, then map it to Keycloak.

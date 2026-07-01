@@ -5,8 +5,8 @@ security:
 
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        oauth_user:
-            id: KnpU\OAuth2ClientBundle\Security\User\OAuthUserProvider
+        app_user:
+            id: App\Security\UserProvider
 
     firewalls:
         dev:
@@ -15,7 +15,7 @@ security:
 
         main:
             lazy: true
-            provider: oauth_user
+            provider: app_user
 
             custom_authenticators:
                 - App\Security\KeycloakAuthenticator
