@@ -51,7 +51,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     container_name: keycloak-server
-    command: start
+    command: start --import-realm
     restart: unless-stopped
     ports:
       - "8081:8080"
