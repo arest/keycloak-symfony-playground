@@ -1,10 +1,10 @@
 # Plan: Docker Scaffold
 
 ## Group 1: Set up docker directory structure
-- [ ] Create `docker/php/Dockerfile`
-- [ ] Create `docker/nginx/default.conf`
-- [ ] Create `docker/keycloak/.gitkeep`
-- [ ] Add `.gitkeep` files to empty docker subdirectories (if needed)
+- [x] Create `docker/php/Dockerfile`
+- [x] Create `docker/nginx/default.conf`
+- [x] Create `docker/keycloak/.gitkeep`
+- [x] Empty docker subdirectories already existed (`docker/php/`, `docker/nginx/`, `docker/keycloak/`)
 
 ## Group 2: Configure PostgreSQL service
 - [ ] Add `postgres` service to `docker-compose.yml` (`postgres:16-alpine`)
