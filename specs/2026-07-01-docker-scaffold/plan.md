@@ -7,11 +7,11 @@
 - [x] Empty docker subdirectories already existed (`docker/php/`, `docker/nginx/`, `docker/keycloak/`)
 
 ## Group 2: Configure PostgreSQL service
-- [ ] Add `postgres` service to `docker-compose.yml` (`postgres:16-alpine`)
-- [ ] Configure `pgdata` named volume for PostgreSQL persistence
-- [ ] Set environment variables: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- [ ] Add healthcheck (`pg_isready -U keycloak`)
-- [ ] Add `internal` network attachment
+- [x] Add `postgres` service to `docker-compose.yml` (`postgres:16-alpine`)
+- [x] Configure `pgdata` named volume for PostgreSQL persistence
+- [x] Set environment variables: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+- [x] Add healthcheck (`pg_isready -U keycloak`)
+- [x] Add `internal` network attachment
 
 ## Group 3: Configure Keycloak service
 - [ ] Add `keycloak` service to `docker-compose.yml` (`quay.io/keycloak/keycloak:26.x`)
