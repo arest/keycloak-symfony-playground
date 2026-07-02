@@ -41,7 +41,7 @@
 - [x] Add token refresh handling
 - [x] Verify endpoints with browser session
 
-## Phase 6: Next.js SPA  ❌
+## Phase 6: Next.js SPA  ✅
 - [x] Scaffold Next.js app (local, port 3000)
 - [x] Build Login page — button linking to Symfony `/login`
 - [x] Build Profile page — fetch `/api/me` from Symfony
@@ -49,10 +49,10 @@
 - [x] Wire up navigation between pages
 - [x] Verify full end-to-end flow: login → profile → protected resource → logout
 
-## Phase 7: Documentation & Polish  🔶
-- [ ] Write comprehensive README.md with architecture diagram
-- [ ] Document curl examples for API-only OIDC flow
-- [ ] Document manual Keycloak admin UI access (localhost:8081)
-- [ ] Add interview talking points for SSO, OIDC, BFF pattern
-- [ ] Verify all `docker compose` commands work from clean clone
-- [ ] Final review of all files and configs
+## Phase 7: Documentation & Polish  ✅
+- [x] Write comprehensive README.md with architecture diagram
+- [x] Document curl examples for API-only OIDC flow
+- [x] Document manual Keycloak admin UI access (localhost:8081)
+- [x] Add interview talking points for SSO, OIDC, BFF pattern
+- [x] Verify all `docker compose` commands work from clean clone
+- [x] Final review of all files and configs

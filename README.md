@@ -1,915 +1,802 @@
+# Keycloack SSO Playground
+
+> **Note:** The repository name spells "Keycloack" (with a 'c') — a known typo. The correct spelling is **Keycloak**. Kept as-is for consistency.
+
+A hands-on learning project demonstrating the **Backend-for-Frontend (BFF) pattern** with **Symfony** acting as an OIDC/OAuth2 client to **Keycloak**, serving a **Next.js SPA**. Built for interview preparation and as a reference implementation for SSO architecture using the BFF security pattern.
+
+---
+
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Services Overview](#services-overview)
+- [Directory Structure](#directory-structure)
+- [End-to-End OIDC Flow](#end-to-end-oidc-flow)
+- [Browser Flow (SPA)](#browser-flow-spa)
+- [API / Curl Flow](#api--curl-flow)
+- [Token Refresh](#token-refresh)
+- [Keycloak Admin Console](#keycloak-admin-console)
+- [How the Realm Export Maps to the Admin UI](#how-the-realm-export-maps-to-the-admin-ui)
+- [Interview Talking Points](#interview-talking-points)
+  - [SSO (Single Sign-On)](#sso-single-sign-on)
+  - [OIDC Authorization Code Flow](#oidc-authorization-code-flow)
+  - [BFF (Backend-for-Frontend) Pattern](#bff-backend-for-frontend-pattern)
+  - [Role-Based Access Control](#role-based-access-control)
+  - [Production Deployment Considerations](#production-deployment-considerations)
+
+---
+
+## Architecture
+
+```
+                         ┌─────────────────────────────────────┐
+                         │          Internet / Localhost        │
+                         └─────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┼────────────────────┐
+                    │                 │                     │
+                    ▼                 ▼                     │
+            ┌──────────────┐  ┌──────────────┐             │
+            │   Browser    │  │    curl      │             │
+            │ (Next.js SPA)│  │  (API-only)  │             │
+            │  :3000       │  │              │             │
+            └──────┬───────┘  └──────┬───────┘             │
+                   │                 │                     │
+                   │  Session        │  Bearer Token       │
+                   │  Cookie         │  (Direct Grant)     │
+                   │                 │                     │
+                   ▼                 ▼                     │
+            ┌──────────────────────────────────┐           │
+            │        nginx (:8080)             │           │
+            │    Reverse Proxy → PHP-FPM       │           │
+            └──────────────┬───────────────────┘           │
+                           │                               │
+                           ▼                               │
+            ┌──────────────────────────────────┐           │
+            │     Symfony BFF (PHP 8.3)        │           │
+            │  ┌────────────────────────────┐  │           │
+            │  │  OIDC Client               │  │           │
+            │  │  (knpu/oauth2-client)      │  │           │
+            │  ├────────────────────────────┤  │           │
+            │  │  Session Management        │  │           │
+            │  │  (PostgreSQL-backed)       │  │           │
+            │  ├────────────────────────────┤  │           │
+            │  │  Token Refresh Service     │  │           │
+            │  ├────────────────────────────┤  │           │
+            │  │  User Entity / Role Sync   │  │           │
+            │  │  (Doctrine ORM)            │  │           │
+            │  ├────────────────────────────┤  │           │
+            │  │  API Endpoints             │  │           │
+            │  │  /api/me · /api/protected  │  │           │
+            │  └────────────────────────────┘  │           │
+            └──────────────┬───────────────────┘           │
+                           │                               │
+                           ▼                               ▼
+            ┌──────────────────────────────────┐
+            │      Keycloak 26.x (:8081)       │
+            │  ┌────────────────────────────┐  │
+            │  │  Playground Realm          │  │
+            │  │  Users: user1, admin1     │  │
+            │  │  Roles: USER, ADMIN       │  │
+            │  │  Client: symfony-bff      │  │
+            │  └────────────────────────────┘  │
+            └──────────────┬───────────────────┘
+                           │
+                           ▼
+            ┌──────────────────────────────────┐
+            │  PostgreSQL 16 Alpine            │
+            │  ├── keycloak DB                 │
+            │  └── symfony DB                  │
+            │      ├── user table              │
+            │      └── sessions table          │
+            └──────────────────────────────────┘
+```
+
+### Service Relationships
+
+| Component | Role | Trust Model |
+|---|---|---|
+| **Browser (Next.js SPA)** | Renders UI, holds session cookie | Trusts Keycloak to authenticate users |
+| **curl / API Client** | Direct API access via Password Grant | Exchanges credentials for tokens directly |
+| **Nginx** | Reverse proxy to PHP-FPM | Adds CORS headers for cross-origin SPA requests |
+| **Symfony BFF** | OIDC client, session manager, API provider | Trusts Keycloak to issue signed tokens |
+| **Keycloak** | Identity Provider (IdP) | Source of truth for identities |
+| **PostgreSQL** | Shared database | Persists Keycloak config, Symfony users, sessions |
+
+**Key principle:** The backend (Symfony) does **not** trust the frontend (browser). It validates the session on every API call. The access token is never exposed to the browser — it stays server-side in the Symfony session.
+
+---
+
+## Prerequisites
+
+- **Docker** and **Docker Compose** (for the backend stack: PostgreSQL, Keycloak, PHP, Nginx)
+- **Node.js 18+** (for the Next.js SPA — runs outside Docker)
+- **npm** or **yarn** (for installing Next.js dependencies)
+- **curl** (for API-only demo flows)
+
+---
+
 ## Quick Start
 
-```bash
-# Start the stack
-docker compose up -d
+### 1. Start the Docker stack
 
-# Fix: master realm requires SSL by default → disable for local dev
+```bash
+docker compose up -d --build
+```
+
+This starts 4 services: PostgreSQL, Keycloak, PHP-FPM, and Nginx. Keycloak automatically imports the `playground` realm from `docker/keycloak/realm-export.json`.
+
+### 2. Fix master realm SSL (first time only)
+
+Keycloak's master realm requires SSL by default. Disable it for local development:
+
+```bash
 docker compose exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
   --server http://localhost:8080 --realm master --user admin --password admin
 docker compose exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=none
 ```
 
-**URLs & Credentials**
+> **Note:** This fix is stored in the PostgreSQL volume. It survives `restart` and `up/down`, but if you delete the volume (`docker compose down -v`) you need to run it again.
 
-| What | URL / Command |
-|------|---------------|
-| Keycloak Admin Console | http://localhost:8081 |
-| Master realm admin | `admin` / `admin` |
-| Playground realm admin | `admin1` / `admin1` |
-| Playground realm user | `user1` / `user1` |
-| Symfony app | http://localhost:8080 |
+### 3. Start the Next.js SPA
 
-> **Note:** The master realm SSL fix is stored in the PostgreSQL volume. It survives `restart` and `up/down`, but if you delete the volume (`docker compose down -v`) you need to run the fix again.
+```bash
+cd nextjs-app
+npm install
+npm run dev
+```
+
+### 4. Open the app
+
+- **SPA:** http://localhost:3000
+- **Symfony BFF:** http://localhost:8080 (redirects to Keycloak login)
+- **Keycloak Admin Console:** http://localhost:8081
+
+### Credentials
+
+| Role | Username | Password | Realm Roles |
+|---|---|---|---|
+| Standard user | `user1` | `user1` | `USER` |
+| Administrator | `admin1` | `admin1` | `USER`, `ADMIN` |
+| Keycloak admin | `admin` | `admin` | Master realm admin |
+
+### 5. Verify it works
+
+1. Open http://localhost:3000 in your browser
+2. Click **Login with Keycloak**
+3. Sign in as `user1` / `user1`
+4. You'll be redirected to the **Profile** page showing your user info
+5. Click **Protected** in the nav — you should see **"Access Denied"** (user1 has only USER role)
+6. Click **Logout**, log in as `admin1` / `admin1`
+7. Visit **Protected** — you should see **"Welcome, admin!"**
 
 ---
 
-You're asking exactly the right questions. The biggest mental shift with OAuth2/OIDC is understanding **what each token is for** and **who is supposed to trust whom**.
+## Services Overview
 
-Let's build the mental model first, then map it to Keycloak.
+| Service | Docker Image | Internal Port | External Port | Purpose |
+|---|---|---|---|---|
+| `postgres` | `postgres:16-alpine` | 5432 | — | Shared database (Keycloak + Symfony) |
+| `keycloak` | `quay.io/keycloak/keycloak:26.1` | 8080 | 8081 | Identity Provider, realm import |
+| `php` | Custom (`php:8.3-fpm-alpine`) | 9000 | — | Symfony runtime (PHP-FPM) |
+| `nginx` | `nginx:alpine` | 80 | 8080 | Reverse proxy to PHP-FPM |
 
----
-
-# The actors
-
-```
-+-----------+          +-----------+          +------------+
-| Frontend  | <------> |  Backend  | <------> | Keycloak   |
-| (SPA)     |          | REST API  |          |  IdP       |
-+-----------+          +-----------+          +------------+
-```
-
-Each component trusts different things.
-
-* **Frontend** trusts Keycloak to authenticate users.
-* **Backend** trusts Keycloak to issue signed access tokens.
-* **Keycloak** is the source of truth for identities.
-
-Notice that the backend does **not** trust the frontend.
+All services share a single `internal` Docker bridge network. Data persistence is provided by the `pgdata` volume.
 
 ---
 
-# Authentication flow
-
-A modern SPA usually uses the Authorization Code Flow with PKCE.
+## Directory Structure
 
 ```
-1. User opens SPA
-
-2. SPA redirects user to Keycloak
-
-3. User logs in
-
-4. Keycloak returns
-
-    Authorization Code
-
-5. SPA exchanges it for
-
-    Access Token
-    Refresh Token
-    ID Token
-
-6. SPA stores them (carefully)
-
-7. SPA calls backend
-
-Authorization: Bearer eyJhbGci...
-```
-
----
-
-# What are these tokens?
-
-This is probably the most confusing part.
-
-## ID Token
-
-Think of it as:
-
-> "Here is information about the user."
-
-Contains:
-
-* username
-* email
-* name
-* picture
-* etc.
-
-The frontend uses it.
-
-The backend usually **doesn't need it**.
-
----
-
-## Access Token
-
-Think of it as:
-
-> "This user is allowed to call this API."
-
-The backend uses this.
-
-Example:
-
-```
-Authorization: Bearer eyJhbGc...
-```
-
-This is the token your REST API should verify.
-
----
-
-## Refresh Token
-
-Think of it as:
-
-> "Please issue me another access token."
-
-Only exchanged with Keycloak.
-
-Never sent to your REST API.
-
----
-
-# Can I use the Access Token to call my backend?
-
-**Yes.**
-
-In fact, that's exactly what it is for.
-
-```
-SPA
-  |
-  | Authorization: Bearer AccessToken
-  |
-  V
-Backend
-```
-
-This is the normal OAuth2 architecture.
-
----
-
-# What does the backend do?
-
-The backend should:
-
-```
-Receive JWT
-
-↓
-
-Verify signature
-
-↓
-
-Verify expiration
-
-↓
-
-Verify issuer
-
-↓
-
-Verify audience
-
-↓
-
-Extract user/roles
-
-↓
-
-Continue
-```
-
-Notice something important:
-
-The backend is **not asking Keycloak if the token is valid**.
-
-Instead it verifies the cryptographic signature.
-
----
-
-# Why is that possible?
-
-Because JWTs are signed.
-
-Imagine the token is
-
-```
-Header
-
-Payload
-
-Signature
-```
-
-The signature is created with Keycloak's private key.
-
-Only Keycloak owns that private key.
-
-The backend downloads the **public key**.
-
-```
-Keycloak
-
-Private Key
-      |
-      V
-
-Signs JWT
-```
-
-Backend:
-
-```
-Public Key
-
-↓
-
-Verify signature
-```
-
-If the signature matches:
-
-* token wasn't modified
-* token was issued by Keycloak
-
----
-
-# Where does the backend get the public key?
-
-Keycloak exposes a JWKS endpoint.
-
-Example
-
-```
-https://keycloak.example.com/realms/myrealm/protocol/openid-connect/certs
-```
-
-Your JWT library downloads those keys automatically.
-
-Examples:
-
-Spring Security
-
-```
-issuer-uri:
-https://keycloak/.../realm/demo
-```
-
-Node
-
-```
-jwks-rsa
-```
-
-Python
-
-```
-PyJWT + JWKS
-```
-
-ASP.NET
-
-```
-AddJwtBearer()
-```
-
-Almost every framework supports this automatically.
-
----
-
-# Should I call Keycloak for every request?
-
-**No.**
-
-This is a very common misconception.
-
-Bad:
-
-```
-Frontend
-
-↓
-
-Backend
-
-↓
-
-"Hey Keycloak,
-is this token valid?"
-
-↓
-
-Keycloak
-
-↓
-
-Response
-```
-
-Now every API call requires another network request.
-
-Terrible for latency.
-
----
-
-Instead:
-
-```
-Frontend
-
-↓
-
-Backend
-
-↓
-
-Verify JWT locally
-
-↓
-
-Done
-```
-
-Verification takes microseconds.
-
-No network call.
-
----
-
-# Should I cache the public keys?
-
-Yes.
-
-Actually, your JWT library usually does it.
-
-The backend periodically refreshes them.
-
-Flow:
-
-```
-First request
-
-↓
-
-Download JWKS
-
-↓
-
-Cache
-
-↓
-
-Verify locally
-
-↓
-
-Thousands of requests
-
-↓
-
-Occasionally refresh JWKS
-```
-
-You almost never implement this yourself.
-
----
-
-# What should the backend verify?
-
-At minimum:
-
-### Signature
-
-Is it signed by Keycloak?
-
----
-
-### Expiration
-
-```
-exp
-```
-
-Reject expired tokens.
-
----
-
-### Not Before
-
-```
-nbf
-```
-
-Reject if token isn't valid yet.
-
----
-
-### Issuer
-
-```
-iss
-```
-
-Should equal your Keycloak realm.
-
-Example
-
-```
-https://keycloak.company.com/realms/internal
+keycloack-playground/
+│
+├── docker-compose.yml              # Orchestrates all 4 services
+├── README.md                       # This file
+├── CONTEXT.md                      # Agent/LLM context documentation
+│
+├── docker/
+│   ├── keycloak/
+│   │   └── realm-export.json       # Declarative Keycloak realm config
+│   ├── nginx/
+│   │   └── default.conf            # Nginx config + CORS for SPA
+│   └── php/
+│       └── Dockerfile              # PHP 8.3-FPM Alpine image
+│
+├── symfony/                        # Symfony BFF application
+│   ├── .env                        # Default env vars (committed)
+│   ├── .env.local                  # Local overrides (gitignored)
+│   ├── composer.json
+│   ├── config/
+│   │   ├── packages/
+│   │   │   ├── security.yaml       # OIDC authenticator, access control
+│   │   │   ├── framework.yaml      # Session config (PostgreSQL)
+│   │   │   ├── knpu_oauth2_client.yaml  # Keycloak OIDC client config
+│   │   │   ├── doctrine.yaml       # ORM + DB config
+│   │   │   └── ...
+│   │   ├── routes.yaml             # Route definitions
+│   │   └── services.yaml           # DI services, parameters, bindings
+│   ├── src/
+│   │   ├── Controller/
+│   │   │   ├── LoginController.php      # /login, /login/check routes
+│   │   │   ├── LogoutController.php     # /logout + Keycloak back-channel
+│   │   │   ├── ApiController.php        # /api/me, /api/protected
+│   │   │   ├── DashboardController.php  # Symfony Twig routes
+│   │   │   └── HealthController.php     # Health check endpoint
+│   │   ├── Core/Security/
+│   │   │   ├── Service/
+│   │   │   │   ├── KeycloakAuthenticator.php  # Custom OIDC authenticator
+│   │   │   │   ├── UserProvider.php           # Loads User from Doctrine
+│   │   │   │   ├── TokenStorage.php           # Session-backed token store
+│   │   │   │   └── TokenRefreshService.php    # Auto-refresh expired tokens
+│   │   │   ├── EventSubscriber/
+│   │   │   │   └── TokenRefreshSubscriber.php # Hooks refresh into /api requests
+│   │   │   └── Voter/
+│   │   │       └── ApiAccessVoter.php         # Role-based API access (USER/ADMIN)
+│   │   ├── Entity/
+│   │   │   └── User.php              # Doctrine User entity
+│   │   ├── Repository/
+│   │   │   └── UserRepository.php    # Doctrine repository
+│   │   └── Service/User/
+│   │       ├── Model/
+│   │       │   └── UserCreateModel.php  # Input DTO with validation
+│   │       └── Service/
+│   │           ├── UserService.php      # Validation facade
+│   │           └── UserManager.php      # Create/update logic + role mapping
+│   ├── templates/
+│   │   ├── base.html.twig           # Base layout
+│   │   └── dashboard/
+│   │       ├── home.html.twig       # Symfony home page
+│   │       └── dashboard.html.twig  # Symfony dashboard (debug view)
+│   ├── migrations/
+│   │   └── Version20260701165307.php    # Doctrine migration
+│   └── public/
+│       └── index.php               # Symfony front controller
+│
+├── nextjs-app/                      # Next.js SPA (runs outside Docker)
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── page.tsx            # Home/landing page
+│   │   │   ├── layout.tsx          # Root layout + AuthProvider
+│   │   │   ├── navbar.tsx          # Navigation bar
+│   │   │   ├── login/page.tsx      # Login page
+│   │   │   ├── profile/page.tsx    # Profile page (calls /api/me)
+│   │   │   └── protected/page.tsx  # Protected resource page
+│   │   └── lib/
+│   │       ├── config.ts           # Symfony URL config
+│   │       └── use-auth.tsx        # Auth context provider
+│   ├── .env.example                # Environment template
+│   └── package.json
+│
+└── specs/                          # Project specifications & roadmap
+    ├── mission.md
+    ├── tech-stack.md
+    ├── roadmap.md
+    └── 2026-07-02-documentation-and-polish/
+        ├── plan.md
+        ├── requirements.md
+        └── validation.md
 ```
 
 ---
 
-### Audience
+## End-to-End OIDC Flow
+
+Here's what happens when a user clicks "Login with Keycloak" in the SPA:
 
 ```
-aud
+Step 1: Browser → Symfony
+        GET http://localhost:8080/login
+        └── Symfony redirects to Keycloak's authorization endpoint
+
+Step 2: Browser → Keycloak
+        GET http://localhost:8081/realms/playground/protocol/openid-connect/auth
+            ?response_type=code
+            &client_id=symfony-bff
+            &redirect_uri=http://localhost:8080/login/check
+            &scope=openid+profile+email+roles
+            &state=...
+
+Step 3: User logs in at Keycloak
+        Keycloak validates credentials (user1/user1)
+
+Step 4: Keycloak → Browser (redirect)
+        HTTP 302 → http://localhost:8080/login/check?code=...&state=...
+
+Step 5: Browser → Symfony /login/check
+        Symfony's KeycloakAuthenticator intercepts this route:
+        1. Exchanges the authorization code for tokens (access, refresh, ID)
+        2. Fetches user info from the ID token
+        3. Creates or updates the Doctrine User entity
+        4. Stores tokens in the PostgreSQL-backed session
+        5. Sets a session cookie (HttpOnly, SameSite=Lax)
+        6. Redirects to /profile (which redirects to the Next.js SPA)
+
+Step 6: Browser → Next.js SPA /profile
+        SPA calls GET http://localhost:8080/api/me (with session cookie)
+        Symfony reads the session, returns user profile
+
+Step 7: Browser → Next.js SPA /protected
+        SPA calls GET http://localhost:8080/api/protected (with session cookie)
+        Symfony checks the ApiAccessVoter for ROLE_ADMIN
+        → 200 if admin, 403 if regular user
+
+Step 8: User clicks Logout
+        Browser → Symfony /logout
+        Symfony:
+        1. Reads the ID token from session
+        2. Invalidates the Symfony session
+        3. Redirects to Keycloak's logout endpoint
+           → Keycloak ends the SSO session
+           → Redirects back to http://localhost:3000
 ```
-
-Ensure the token was issued for your API.
-
-Otherwise someone could reuse a token intended for another service.
 
 ---
 
-### Scopes / Roles
+## Browser Flow (SPA)
 
-Example
+### Login → Profile → Protected → Logout
 
-```
-roles:
-
-admin
-
-editor
-
-viewer
-```
-
-or
-
-```
-scope
-
-orders.read
-orders.write
-```
-
-Authorize based on these claims.
+1. Open http://localhost:3000
+2. Click **Login with Keycloak** — redirected to Keycloak login page
+3. Sign in as `user1` / `user1`
+4. You're redirected to the **Profile** page showing your username, email, and roles
+5. Click **Protected** — you'll see **"Access Denied"** because `user1` lacks the ADMIN role
+6. Click **Logout** in the navbar
+7. Login as `admin1` / `admin1`
+8. Visit **Profile** — shows ADMIN role in the roles list
+9. Visit **Protected** — shows **"Welcome, admin!"** with access granted
 
 ---
 
-# What about logout?
+## API / Curl Flow
 
-Here's the interesting part.
+The API supports direct access using the **Resource Owner Password Credentials (ROPC)** grant — also called the **Direct Access Grant** in Keycloak. This is useful for API clients, automation, and testing.
 
-Suppose:
+> **Security note:** The Password Grant should generally not be used in browser-based applications. It's included here for API clients and testing purposes only.
 
-```
-Access Token
+### 1. Get a Token (Password Grant)
 
-Expires in 15 minutes
-```
-
-User logs out.
-
-The token is still cryptographically valid until expiration.
-
-This surprises many developers.
-
-JWTs are intentionally stateless.
-
-That's why access tokens are usually short-lived.
-
-Example:
-
-```
-Access Token
-
-10-15 min
-
-Refresh Token
-
-30 days
+```bash
+curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=symfony-bff" \
+  -d "client_secret=symfony-bff-secret" \
+  -d "grant_type=password" \
+  -d "username=user1" \
+  -d "password=user1" \
+  -d "scope=openid profile email roles" | jq .
 ```
 
-When the user logs out:
+**Response:**
 
-* refresh token is revoked
-* no new access tokens can be issued
-* existing access token naturally expires soon
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "expires_in": 300,
+  "refresh_token": "eyJhbGciOiJIUzUxMiIs...",
+  "id_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "not-before-policy": 0,
+  "session_state": "...",
+  "scope": "openid profile email roles"
+}
+```
+
+> **Tip:** Pipe through `jq .` for pretty-printed JSON. If you don't have jq, omit `| jq .` for raw output.
+
+### 2. Call `/api/me` (Authenticated User Info)
+
+This endpoint returns the authenticated user's profile. It works for any authenticated user.
+
+```bash
+# Store the token in a variable
+TOKEN=$(curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=symfony-bff" \
+  -d "client_secret=symfony-bff-secret" \
+  -d "grant_type=password" \
+  -d "username=user1" \
+  -d "password=user1" \
+  -d "scope=openid profile email roles" | jq -r '.access_token')
+
+# Call /api/me
+curl -s http://localhost:8080/api/me \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+**Response (user1):**
+
+```json
+{
+  "email": "user1@playground.local",
+  "username": "user1",
+  "roles": [
+    "ROLE_USER"
+  ],
+  "lastLogin": "2026-07-02T12:00:00+00:00"
+}
+```
+
+### 3. Call `/api/protected` — USER vs ADMIN Role Test
+
+This endpoint requires the `ADMIN` role. Calling it as a regular user returns 403.
+
+#### As user1 (USER role only — expect 403):
+
+```bash
+USER_TOKEN=$(curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=symfony-bff" \
+  -d "client_secret=symfony-bff-secret" \
+  -d "grant_type=password" \
+  -d "username=user1" \
+  -d "password=user1" \
+  -d "scope=openid profile email roles" | jq -r '.access_token')
+
+curl -s http://localhost:8080/api/protected \
+  -H "Authorization: Bearer $USER_TOKEN" | jq .
+```
+
+**Response (403):**
+
+```json
+{
+  "error": "forbidden",
+  "message": "Access denied. ADMIN role is required."
+}
+```
+
+#### As admin1 (USER + ADMIN role — expect 200):
+
+```bash
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=symfony-bff" \
+  -d "client_secret=symfony-bff-secret" \
+  -d "grant_type=password" \
+  -d "username=admin1" \
+  -d "password=admin1" \
+  -d "scope=openid profile email roles" | jq -r '.access_token')
+
+curl -s http://localhost:8080/api/protected \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
+```
+
+**Response (200):**
+
+```json
+{
+  "message": "Welcome, admin! You have access to the protected resource.",
+  "username": "admin1"
+}
+```
+
+### 4. Token Refresh
+
+When the access token is about to expire, exchange the refresh token for a new set of tokens:
+
+```bash
+# Get tokens (including refresh_token)
+TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=symfony-bff" \
+  -d "client_secret=symfony-bff-secret" \
+  -d "grant_type=password" \
+  -d "username=user1" \
+  -d "password=user1" \
+  -d "scope=openid profile email roles")
+
+REFRESH_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.refresh_token')
+
+# Refresh
+curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=symfony-bff" \
+  -d "client_secret=symfony-bff-secret" \
+  -d "grant_type=refresh_token" \
+  -d "refresh_token=$REFRESH_TOKEN" | jq .
+```
+
+**Response:** A new set of tokens with a fresh `access_token`, `refresh_token`, and `id_token`.
+
+### 5. Logout
+
+To log out, hit the Keycloak end-session endpoint with the ID token:
+
+```bash
+# Get a fresh ID token
+TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=symfony-bff" \
+  -d "client_secret=symfony-bff-secret" \
+  -d "grant_type=password" \
+  -d "username=user1" \
+  -d "password=user1" \
+  -d "scope=openid profile email roles")
+
+ID_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.id_token')
+
+# Logout via Keycloak
+curl -v "http://localhost:8081/realms/playground/protocol/openid-connect/logout?post_logout_redirect_uri=http://localhost:3000&id_token_hint=$ID_TOKEN"
+```
 
 ---
 
-# When would I call Keycloak?
+## Token Refresh
 
-Rarely.
+In the Symfony BFF, token refresh happens **automatically and transparently** for API requests:
 
-Mostly for:
+1. **TokenRefreshSubscriber** listens to `KernelEvents::REQUEST` for paths starting with `/api`
+2. Before the controller runs, **TokenRefreshService** checks if the stored access token is within 30 seconds of expiry
+3. If expired, it exchanges the refresh token for a new set of tokens via Keycloak's token endpoint
+4. The new tokens are stored in the session; the API request proceeds normally
+5. If refresh fails (revoked session, network error), the session is cleared and the user must re-authenticate
 
-* Login
-* Refresh tokens
-* Logout
-* User information (if needed)
-* Token introspection (only when using opaque tokens or if immediate revocation checks are required)
-
-For normal JWT access tokens:
-
-**No call per request.**
+This means the **Next.js SPA never needs to handle token refresh** — it just makes API calls with its session cookie, and Symfony handles the OIDC token lifecycle server-side.
 
 ---
 
-# Complete request lifecycle
+## Keycloak Admin Console
 
-```
-               Login
-                 │
-                 ▼
-            +-----------+
-            | Keycloak  |
-            +-----------+
-                 │
-      Access + Refresh Token
-                 │
-                 ▼
-           +-----------+
-           |    SPA    |
-           +-----------+
-                 │
- Authorization: Bearer <Access Token>
-                 │
-                 ▼
-          +--------------+
-          |   Backend    |
-          +--------------+
-                 │
-      Verify JWT locally:
-      ✔ Signature
-      ✔ exp
-      ✔ iss
-      ✔ aud
-      ✔ roles/scopes
-                 │
-                 ▼
-            Business Logic
-```
+Keycloak includes a web-based administration console for managing realms, users, roles, and clients.
 
-## Best practices
+### Access
 
-* Use the **Authorization Code Flow with PKCE** for SPAs.
-* Send the **access token** in the `Authorization: Bearer` header to your backend.
-* Validate JWTs **locally** using Keycloak's JWKS endpoint—don't call Keycloak for every request.
-* Ensure your validation checks the signature, expiration, issuer, audience, and any required scopes or roles.
-* Keep access tokens short-lived (typically 5–15 minutes) and use refresh tokens to obtain new ones.
-* Let your JWT library cache and refresh the JWKS automatically.
+| Detail | Value |
+|---|---|
+| URL | http://localhost:8081 |
+| Username | `admin` |
+| Password | `admin` |
+| Realm to manage | Select **playground** from the realm dropdown (top-left) |
 
-Once this model is clear, integrating Keycloak into frameworks like Spring Boot, ASP.NET, Node.js (Express/NestJS), or Python (FastAPI) becomes mostly a matter of configuration rather than implementing the protocol yourself.
+### What to Find in the Admin UI
 
+#### Users
+- Navigate to **Manage → Users**
+- You'll see `user1` and `admin1` — the two pre-configured users
+- Click a username to view/edit details, credentials, role mappings, and sessions
 
+#### Roles
+- Navigate to **Manage → Realm Roles**
+- You'll see `USER`, `ADMIN`, and default roles (`offline_access`, `uma_authorization`)
+- Click a role to view its description or assign it to users/service accounts
 
-Yes. **This architecture scales well**, but you need to think differently than with a stateless JWT architecture.
+#### Client Configuration
+- Navigate to **Manage → Clients**
+- Find `symfony-bff` — the confidential OIDC client
+- Key settings:
+  - **Client authentication:** ON (confidential client with secret)
+  - **Standard flow:** ENABLED (Authorization Code flow)
+  - **Valid redirect URIs:** `http://localhost:8080/login/check`
+  - **Valid post logout redirect URIs:** `http://localhost:3000`
+  - **Client secret:** `symfony-bff-secret` (under the **Credentials** tab)
 
-The tradeoff is essentially:
+#### Client Scopes
+- Navigate to **Manage → Client Scopes**
+- The `roles` scope includes protocol mappers that inject `realm_roles` into the access and ID tokens
+- The `profile` scope maps `username`, `given_name`, `family_name`, and `email` claims
 
-* **Pure SPA + JWT** → stateless, horizontally scalable, more frontend complexity and token exposure.
-* **BFF + Session** → stateful, much better security, requires shared session storage when scaling.
-
-For most enterprise applications, the BFF approach is often the preferred choice because the security benefits outweigh the operational cost of managing sessions.
+#### Realm Settings
+- Navigate to **Manage → Realm Settings**
+- General tab: Realm name, display name, enabled status
+- Login tab: Email as username, remember me, verify email toggles
+- Tokens tab: Access token lifespan (default 5 minutes), refresh token lifespan
 
 ---
 
-## The scalability mental model
+## How the Realm Export Maps to the Admin UI
 
-Imagine you have three Symfony instances behind a load balancer.
+The file `docker/keycloak/realm-export.json` is a complete, declarative snapshot of the `playground` realm. Every section corresponds directly to a section in the admin console:
 
-```
-                  +----------------+
-                  | Load Balancer  |
-                  +----------------+
-                   /      |      \
-                  /       |       \
-                 v        v        v
-            +-------+ +-------+ +-------+
-            | App1  | | App2  | | App3  |
-            +-------+ +-------+ +-------+
-```
+| JSON Path | Admin Console Location | What It Defines |
+|---|---|---|
+| `$.realm` | Realm Settings → General | Realm name and display name |
+| `$.sslRequired` | Realm Settings → Login | SSL requirement (`none` for local dev) |
+| `$.roles.realm[]` | Manage → Realm Roles | Custom roles: `USER`, `ADMIN`, and built-in roles |
+| `$.users[]` | Manage → Users | Test users with credentials and role assignments |
+| `$.clients[]` | Manage → Clients | OIDC clients including `symfony-bff` with its secret, redirect URIs, and flow settings |
+| `$.clientScopes[]` | Manage → Client Scopes | Scope definitions including `roles` with protocol mappers |
+| `$.defaultDefaultClientScopes` | Client → Client Scopes tab | Scopes automatically assigned to every client |
+| `$.components["org.keycloak.keys.KeyProvider"]` | Realm Settings → Keys | Signing key configuration (RSA 2048-bit RS256) |
 
-A user logs in.
-
-The first request lands on **App1**.
-
-App1 creates a session.
-
-The next request might land on **App3**.
-
-How does App3 know who the user is?
-
-That's where shared session storage comes in.
+**The benefit of declarative config:** Instead of clicking through the admin UI to configure these settings manually, you edit `realm-export.json` and restart Keycloak. The import is automatic on container start thanks to the `--import-realm` command flag and the volume mount at `/opt/keycloak/data/import/`.
 
 ---
 
-## Option 1: Local filesystem ❌
+## Interview Talking Points
 
-```
-App1
- └── session file
+### SSO (Single Sign-On)
 
-App2
- └── doesn't have it
-```
+**What SSO solves:**
+- Users authenticate once and gain access to multiple applications without re-entering credentials
+- Eliminates password fatigue and reduces credential sprawl
+- Centralizes authentication policy (password complexity, MFA, session timeouts)
 
-This only works if you have a single server.
+**How SSO works here:**
+- Keycloak is the central authentication authority
+- When a user logs in via the Symfony BFF, Keycloak creates an SSO session
+- If other applications (not in this project) were registered in the same realm, the user would not need to re-authenticate
+- Logging out of one application terminates the SSO session, logging the user out everywhere
 
-Not suitable for horizontal scaling.
+**Key tradeoffs:**
+- **Pro:** Centralized security policy, better UX, reduced password-related support tickets
+- **Con:** Single point of failure — if Keycloak is down, no one can authenticate
+- **Con:** Session management complexity — logout needs to propagate across all applications
 
----
-
-## Option 2: Sticky sessions 🟡
-
-The load balancer always sends the user to the same server.
-
-```
-User A -> App1
-User B -> App2
-```
-
-This works, but has drawbacks:
-
-* uneven load
-* server failures log users out
-* harder deployments
-* poor elasticity
-
-It's generally better to avoid relying on sticky sessions if you can.
+**Protocols:** While this project uses OIDC (OAuth2 + OpenID Connect), SSO can also be implemented with SAML 2.0 (common in enterprise) or CAS (legacy).
 
 ---
 
-## Option 3: Redis ✅ (most common)
+### OIDC Authorization Code Flow
+
+**What is OIDC?**
+- OpenID Connect (OIDC) is an identity layer on top of OAuth 2.0
+- OAuth 2.0 is about **delegated access** ("what you can do")
+- OIDC adds **authentication** ("who you are") via the ID Token
+
+**The flow step by step:**
 
 ```
-             Redis
-          +-----------+
-          | Sessions  |
-          +-----------+
-           ^   ^   ^
-          /    |    \
-     App1  App2  App3
+1. Client → Authorization Server:  Authorization Request
+2. User authenticates at the Authorization Server
+3. Authorization Server → Client:  Authorization Code
+4. Client → Authorization Server:  Token Request (code + secret)
+5. Authorization Server → Client:  Access Token + ID Token + Refresh Token
+6. Client → Resource Server:       API call with Access Token
+7. Resource Server:                Validates JWT locally (no callback to IdP)
 ```
 
-Any Symfony instance can:
+**Key concepts:**
+- **ID Token (JWT):** Contains identity claims (sub, email, preferred_username). Verified by signature, not encrypted by default
+- **Access Token (JWT):** Contains authorization claims (roles, scopes). Sent to APIs
+- **Refresh Token:** Long-lived token exchanged for new access tokens. Must be stored securely
+- **Scopes:** `openid` (required for OIDC), `profile`, `email`, `roles` — each grants access to specific claims
 
-* read the session
-* update the session
-* refresh tokens
-
-The load balancer can send requests anywhere.
-
-This is the most common production setup.
+**Why Authorization Code (not Implicit or Password grant):**
+- The code is a one-use credential exchanged server-side for tokens
+- The client secret proves the client's identity in the token exchange
+- Tokens never pass through the browser (in the BFF pattern)
+- More secure than Implicit flow (which exposes tokens in URL fragments)
 
 ---
 
-## Option 4: Database 🟡
+### BFF (Backend-for-Frontend) Pattern
+
+**What is BFF?**
+- A backend service dedicated to serving a specific frontend application
+- It acts as an intermediary between the frontend and downstream services (including the identity provider)
+- Popularized by Sam Newman and Phil Calçado; widely adopted in microservices architectures
+
+**Why BFF for OIDC security:**
+
+| Concern | Browser + BFF | Browser + Direct OIDC |
+|---|---|---|
+| Token storage | HttpOnly cookie (not accessible to JS) | localStorage (accessible to any JS) |
+| Refresh token | Server-side only | Exposed to browser JavaScript |
+| Client secret | Server-side only | N/A (public client — PKCE required) |
+| Token refresh | Automatic, server-initiated | Manual, client-initiated |
+| CSRF risk | Mitigated by SameSite cookie + CSRF tokens | No CSRF (bearer tokens) but XSS steals them |
+
+**Architecture tradeoffs:**
+- **Security:** Much stronger — tokens never reach the browser
+- **Statefulness:** Symfony sessions are stateful; scaling horizontally requires shared Redis session storage
+- **Latency:** One extra hop via the BFF, but token validation is local (JWKS) — no per-request call to Keycloak
+- **Complexity:** More moving parts than a direct SPA + JWT approach
+
+**What makes this a BFF specifically:**
+1. Symfony handles the full OIDC login dance (not the SPA)
+2. The SPA talks to Symfony, not directly to Keycloak
+3. Symfony stores and refreshes tokens server-side
+4. The SPA only receives a session cookie
+
+**Common production deployment:**
 
 ```
-PostgreSQL
-
-Session Table
+Load Balancer
+    ├── Symfony BFF #1  ─┐
+    ├── Symfony BFF #2  ─┤── Redis (shared sessions)
+    └── Symfony BFF #3  ─┘
+                              └── Keycloak (HA with DB replication)
 ```
-
-It works.
-
-Symfony supports it.
-
-However:
-
-* slower than Redis
-* unnecessary writes
-* database becomes busier
-
-It's a reasonable choice for smaller deployments, but Redis is usually preferred for session storage.
 
 ---
 
-# What is stored in the session?
+### Role-Based Access Control
 
-Surprisingly little.
-
-For example:
+**How roles work in this project:**
 
 ```
-session_id
-
-↓
-
-user_id
-
-↓
-
-access_token
-
-↓
-
-refresh_token
-
-↓
-
-expires_at
+Keycloak (source of truth)
+    │
+    │  realm_roles: ["USER", "ADMIN"]
+    ▼
+Symfony (role mapping)
+    │
+    │  "USER"    → ROLE_USER
+    │  "ADMIN"   → ROLE_ADMIN
+    │
+    ▼
+Doctrine User entity
+    │
+    │  roles: ["ROLE_USER", "ROLE_ADMIN"]
+    │
+    ▼
+ApiAccessVoter
+    │
+    ├── /api/me        → any authenticated user (ROLE_USER)
+    └── /api/protected → ROLE_ADMIN only
 ```
 
-Even if each session is a few kilobytes, Redis can comfortably hold hundreds of thousands of active sessions on modest hardware.
+**Key architectural decisions:**
+- **Roles are synced from Keycloak**, not managed locally
+- The Symfony `User` entity caches roles as a local copy of Keycloak's data
+- Role mapping happens in `UserManager::mapRoles()` — Keycloak role names are converted to Symfony convention (`ROLE_USER`, `ROLE_ADMIN`)
+- Authorization is enforced by a **Symfony Voter** (`ApiAccessVoter`), which is decoupled from the controller logic
+
+**Why Voters instead of `#[IsGranted]` attributes:**
+- Voters can encapsulate complex authorization logic (multiple attributes, custom subjects)
+- They are testable in isolation
+- They can be composed: multiple voters can vote on the same resource
+
+**How to add a new role:**
+1. Add the role in `realm-export.json` under `roles.realm[]`
+2. Assign it to users via `realmRoles` on the user objects
+3. Add a mapping in `UserManager::mapRoles()`
+4. Create or update a Voter for the new permission
 
 ---
 
-# Isn't JWT supposed to avoid server-side state?
+### Production Deployment Considerations
 
-Yes.
+**What would change for production:**
 
-JWTs were designed to make **resource servers** stateless.
+| Aspect | Development | Production |
+|---|---|---|
+| **TLS/HTTPS** | HTTP only | TLS everywhere (Keycloak, Symfony, SPA) |
+| **Secrets** | `symfony-bff-secret` in .env.local | Secrets manager or K8s secrets |
+| **Session storage** | PostgreSQL (single instance) | Redis (shared, HA) |
+| **Keycloak start** | `start-dev --import-realm` | `start --optimized` with production DB |
+| **Master realm SSL** | Disabled (`sslRequired=none`) | Required (enabled by default) |
+| **Keycloak hostname** | `KC_HOSTNAME=http://localhost:8081` | Real domain with proper TLS |
+| **Password grant** | Enabled for curl testing | **Disabled** (not for browser apps) |
+| **CORS** | Open to `localhost:3000` | Restricted to production SPA domain |
+| **Logging** | Symfony dev defaults | Structured logging (JSON, ELK stack) |
+| **Container orchestration** | Docker Compose (single host) | Kubernetes or ECS (multi-host) |
+| **Database** | Single PostgreSQL instance | HA PostgreSQL with replication or RDS/Aurora |
 
-But in a BFF, **Symfony is acting as an OAuth client**, not just a resource server.
+**Production Keycloak checklist:**
+- Use a production-grade database (PostgreSQL RDS, Aurora, etc.) — not the embedded H2
+- Enable TLS with a valid certificate
+- Configure a proper hostname (`KC_HOSTNAME` must match the public URL)
+- Set up backup and disaster recovery for the realm configuration
+- Use `start --optimized` after building a production image with `--optimized` flag
+- Restrict `admin-cli` client to trusted networks only
+- Rotate client secrets regularly
 
-That changes the design.
-
-Instead of this:
-
-```
-Browser
-
-↓
-
-JWT
-
-↓
-
-API
-```
-
-You have:
-
-```
-Browser
-
-↓
-
-Session Cookie
-
-↓
-
-Symfony
-
-↓
-
-JWT
-
-↓
-
-Other APIs
-```
-
-The browser never carries the JWT.
+**Production Symfony BFF checklist:**
+- Replace PostgreSQL session storage with Redis (`session.handler.redis` or Symfony's Redis adapter)
+- Set up Redis Sentinel or Redis Cluster for HA session storage
+- Load balancer in front of nginx → multiple PHP-FPM instances
+- Move secrets to environment variables or a secrets manager (not `.env.local`)
+- Enable OPCache (already configured in Dockerfile)
+- Disable the Password Grant flow on the Keycloak client (if not needed for API clients)
+- Use Symfony's built-in rate limiting for API endpoints
 
 ---
 
-# Security advantages
+## Final Review Checklist
 
-This is where the BFF really shines.
-
-## No localStorage
-
-One of the biggest concerns with SPAs is:
-
-```javascript
-localStorage.getItem("access_token")
-```
-
-Any injected JavaScript running in your page can potentially read tokens stored there.
-
-With a BFF:
-
-```
-Browser
-
-↓
-
-HttpOnly Cookie
-```
-
-JavaScript cannot read an `HttpOnly` cookie.
-
-That doesn't eliminate all XSS risks, but it prevents attackers from simply stealing long-lived tokens.
-
----
-
-## Refresh token never leaves the server
-
-This is arguably the biggest security improvement.
-
-Instead of:
-
-```
-Browser
-
-Refresh Token
-```
-
-You have:
-
-```
-Symfony
-
-Refresh Token
-```
-
-An attacker compromising browser JavaScript cannot steal the refresh token because it never reaches the browser.
-
----
-
-## Client Secret stays on the server
-
-If your Keycloak client is confidential, the client secret is stored only in Symfony.
-
-React never sees it.
-
----
-
-## Automatic token refresh
-
-When the access token expires:
-
-```
-Symfony
-
-↓
-
-Refresh Token
-
-↓
-
-Keycloak
-
-↓
-
-New Access Token
-```
-
-The React application continues making normal API calls without needing to know anything about OAuth.
-
----
-
-# What about CSRF?
-
-Since authentication is cookie-based, CSRF protection becomes important again.
-
-Your API should:
-
-* use `SameSite=Lax` or `SameSite=Strict` cookies when appropriate
-* use Symfony's CSRF protection for state-changing operations where applicable
-* ensure CORS is tightly configured if the frontend and backend are on different origins
-
-This is a different threat model from bearer tokens, but it's well understood and well supported by Symfony.
-
----
-
-# A typical production deployment
-
-```
-                    Internet
-                        │
-                        ▼
-                +----------------+
-                | Load Balancer  |
-                +----------------+
-                 /      |       \
-                /       |        \
-               ▼        ▼         ▼
-          +--------+ +--------+ +--------+
-          |Symfony | |Symfony | |Symfony |
-          | BFF #1 | | BFF #2 | | BFF #3 |
-          +--------+ +--------+ +--------+
-                \       |        /
-                 \      |       /
-                  ▼     ▼      ▼
-                 +----------------+
-                 |     Redis      |
-                 |    Sessions    |
-                 +----------------+
-                        │
-                        ▼
-                 +----------------+
-                 |   Keycloak     |
-                 +----------------+
-```
-
-This architecture is common in enterprise environments because it combines:
-
-* horizontal scalability through shared session storage
-* centralized authentication logic
-* strong protection of OAuth tokens
-* simpler frontend code
-
-The operational cost of adding Redis is usually small compared to the security and maintainability benefits, which is why it's a popular choice for BFF-based systems.
+- [x] `docker-compose.yml` — all services start, healthy, and on the correct ports
+- [x] `realm-export.json` — roles (USER, ADMIN), users (user1, admin1), client (symfony-bff) all configured
+- [x] `security.yaml` — OIDC custom_authenticator, PUBLIC_ACCESS for /login, IS_AUTHENTICATED_FULLY for /api
+- [x] `knpu_oauth2_client.yaml` — keycloak_pkce client with correct scopes and encryption algorithm
+- [x] `framework.yaml` — DB-backed sessions via PDO session handler
+- [x] `services.yaml` — Scalar binding for frontend-host, keycloak URLs; Twig global for TokenStorage
+- [x] `.env` / `.env.local` — All required env vars documented and local overrides in .gitignore
+- [x] `nginx/default.conf` — CORS configured for localhost:3000, PHP-FPM proxy correct
+- [x] Next.js `config.ts` — SYMFONY_URL defaults to http://localhost:8080
+- [x] Next.js `.env.example` — documents NEXT_PUBLIC_SYMFONY_URL
+- [x] No TODO comments, debug code, or stale references found
+- [x] Repository name typo ("Keycloack") is consistently used throughout

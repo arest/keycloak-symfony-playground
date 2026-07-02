@@ -14,6 +14,7 @@ class LogoutController extends AbstractController
         private readonly TokenStorage $tokenStorage,
         private readonly string $keycloakServerUrlExternal,
         private readonly string $keycloakRealm,
+        private readonly string $frontendHost
     ) {
     }
 
@@ -35,7 +36,7 @@ class LogoutController extends AbstractController
         );
 
         $params = [
-            'post_logout_redirect_uri' => 'http://localhost:3000',
+            'post_logout_redirect_uri' => $this->frontendHost,
         ];
 
         if ($idTokenHint) {
