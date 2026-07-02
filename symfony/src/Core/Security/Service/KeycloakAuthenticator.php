@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Security;
+namespace App\Core\Security\Service;
 
+use App\Core\Security\Service\UserProvider;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
 use League\OAuth2\Client\Provider\ResourceOwnerInterface;
@@ -28,6 +29,7 @@ class KeycloakAuthenticator extends OAuth2Authenticator implements Authenticatio
         private readonly ClientRegistry $clientRegistry,
         private readonly RouterInterface $router,
         private readonly UserProvider $userProvider,
+        private readonly TokenStorage $tokenStorage,
     ) {
     }
 
@@ -69,18 +71,9 @@ class KeycloakAuthenticator extends OAuth2Authenticator implements Authenticatio
         $userData = $request->attributes->get(self::ATTR_USER_DATA);
 
         if ($accessToken && $userData) {
-            $tokenValues = $accessToken->getValues();
-            $tokenData = [
-                'access_token' => $accessToken->getToken(),
-                'refresh_token' => $accessToken->getRefreshToken(),
-                'id_token' => $tokenValues['id_token'] ?? null,
-                'expires_in' => $accessToken->getExpires(),
-            ];
+            $this->tokenStorage->saveTokens($accessToken, $userData);
 
             $session = $request->getSession();
-            $session->set('oidc_user', $userData);
-            $session->set('oidc_token', $tokenData);
-
             if ($session instanceof Session) {
                 $session->getFlashBag()->add(
                     'success',

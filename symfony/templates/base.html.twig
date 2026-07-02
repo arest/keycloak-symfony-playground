@@ -16,7 +16,7 @@
 <body>
     <nav>
         <a href="{{ path('home') }}">Home</a>
-        {% if app.session and app.session.get('oidc_user') is not null %}
+        {% if token_storage.isAuthenticated %}
             <a href="{{ path('dashboard') }}">Dashboard</a>
             <a href="{{ path('logout') }}">Logout</a>
         {% else %}

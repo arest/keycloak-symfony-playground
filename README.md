@@ -569,3 +569,347 @@ For normal JWT access tokens:
 * Let your JWT library cache and refresh the JWKS automatically.
 
 Once this model is clear, integrating Keycloak into frameworks like Spring Boot, ASP.NET, Node.js (Express/NestJS), or Python (FastAPI) becomes mostly a matter of configuration rather than implementing the protocol yourself.
+
+
+
+Yes. **This architecture scales well**, but you need to think differently than with a stateless JWT architecture.
+
+The tradeoff is essentially:
+
+* **Pure SPA + JWT** → stateless, horizontally scalable, more frontend complexity and token exposure.
+* **BFF + Session** → stateful, much better security, requires shared session storage when scaling.
+
+For most enterprise applications, the BFF approach is often the preferred choice because the security benefits outweigh the operational cost of managing sessions.
+
+---
+
+## The scalability mental model
+
+Imagine you have three Symfony instances behind a load balancer.
+
+```
+                  +----------------+
+                  | Load Balancer  |
+                  +----------------+
+                   /      |      \
+                  /       |       \
+                 v        v        v
+            +-------+ +-------+ +-------+
+            | App1  | | App2  | | App3  |
+            +-------+ +-------+ +-------+
+```
+
+A user logs in.
+
+The first request lands on **App1**.
+
+App1 creates a session.
+
+The next request might land on **App3**.
+
+How does App3 know who the user is?
+
+That's where shared session storage comes in.
+
+---
+
+## Option 1: Local filesystem ❌
+
+```
+App1
+ └── session file
+
+App2
+ └── doesn't have it
+```
+
+This only works if you have a single server.
+
+Not suitable for horizontal scaling.
+
+---
+
+## Option 2: Sticky sessions 🟡
+
+The load balancer always sends the user to the same server.
+
+```
+User A -> App1
+User B -> App2
+```
+
+This works, but has drawbacks:
+
+* uneven load
+* server failures log users out
+* harder deployments
+* poor elasticity
+
+It's generally better to avoid relying on sticky sessions if you can.
+
+---
+
+## Option 3: Redis ✅ (most common)
+
+```
+             Redis
+          +-----------+
+          | Sessions  |
+          +-----------+
+           ^   ^   ^
+          /    |    \
+     App1  App2  App3
+```
+
+Any Symfony instance can:
+
+* read the session
+* update the session
+* refresh tokens
+
+The load balancer can send requests anywhere.
+
+This is the most common production setup.
+
+---
+
+## Option 4: Database 🟡
+
+```
+PostgreSQL
+
+Session Table
+```
+
+It works.
+
+Symfony supports it.
+
+However:
+
+* slower than Redis
+* unnecessary writes
+* database becomes busier
+
+It's a reasonable choice for smaller deployments, but Redis is usually preferred for session storage.
+
+---
+
+# What is stored in the session?
+
+Surprisingly little.
+
+For example:
+
+```
+session_id
+
+↓
+
+user_id
+
+↓
+
+access_token
+
+↓
+
+refresh_token
+
+↓
+
+expires_at
+```
+
+Even if each session is a few kilobytes, Redis can comfortably hold hundreds of thousands of active sessions on modest hardware.
+
+---
+
+# Isn't JWT supposed to avoid server-side state?
+
+Yes.
+
+JWTs were designed to make **resource servers** stateless.
+
+But in a BFF, **Symfony is acting as an OAuth client**, not just a resource server.
+
+That changes the design.
+
+Instead of this:
+
+```
+Browser
+
+↓
+
+JWT
+
+↓
+
+API
+```
+
+You have:
+
+```
+Browser
+
+↓
+
+Session Cookie
+
+↓
+
+Symfony
+
+↓
+
+JWT
+
+↓
+
+Other APIs
+```
+
+The browser never carries the JWT.
+
+---
+
+# Security advantages
+
+This is where the BFF really shines.
+
+## No localStorage
+
+One of the biggest concerns with SPAs is:
+
+```javascript
+localStorage.getItem("access_token")
+```
+
+Any injected JavaScript running in your page can potentially read tokens stored there.
+
+With a BFF:
+
+```
+Browser
+
+↓
+
+HttpOnly Cookie
+```
+
+JavaScript cannot read an `HttpOnly` cookie.
+
+That doesn't eliminate all XSS risks, but it prevents attackers from simply stealing long-lived tokens.
+
+---
+
+## Refresh token never leaves the server
+
+This is arguably the biggest security improvement.
+
+Instead of:
+
+```
+Browser
+
+Refresh Token
+```
+
+You have:
+
+```
+Symfony
+
+Refresh Token
+```
+
+An attacker compromising browser JavaScript cannot steal the refresh token because it never reaches the browser.
+
+---
+
+## Client Secret stays on the server
+
+If your Keycloak client is confidential, the client secret is stored only in Symfony.
+
+React never sees it.
+
+---
+
+## Automatic token refresh
+
+When the access token expires:
+
+```
+Symfony
+
+↓
+
+Refresh Token
+
+↓
+
+Keycloak
+
+↓
+
+New Access Token
+```
+
+The React application continues making normal API calls without needing to know anything about OAuth.
+
+---
+
+# What about CSRF?
+
+Since authentication is cookie-based, CSRF protection becomes important again.
+
+Your API should:
+
+* use `SameSite=Lax` or `SameSite=Strict` cookies when appropriate
+* use Symfony's CSRF protection for state-changing operations where applicable
+* ensure CORS is tightly configured if the frontend and backend are on different origins
+
+This is a different threat model from bearer tokens, but it's well understood and well supported by Symfony.
+
+---
+
+# A typical production deployment
+
+```
+                    Internet
+                        │
+                        ▼
+                +----------------+
+                | Load Balancer  |
+                +----------------+
+                 /      |       \
+                /       |        \
+               ▼        ▼         ▼
+          +--------+ +--------+ +--------+
+          |Symfony | |Symfony | |Symfony |
+          | BFF #1 | | BFF #2 | | BFF #3 |
+          +--------+ +--------+ +--------+
+                \       |        /
+                 \      |       /
+                  ▼     ▼      ▼
+                 +----------------+
+                 |     Redis      |
+                 |    Sessions    |
+                 +----------------+
+                        │
+                        ▼
+                 +----------------+
+                 |   Keycloak     |
+                 +----------------+
+```
+
+This architecture is common in enterprise environments because it combines:
+
+* horizontal scalability through shared session storage
+* centralized authentication logic
+* strong protection of OAuth tokens
+* simpler frontend code
+
+The operational cost of adding Redis is usually small compared to the security and maintainability benefits, which is why it's a popular choice for BFF-based systems.

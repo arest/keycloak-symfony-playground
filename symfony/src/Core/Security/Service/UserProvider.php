@@ -1,9 +1,11 @@
 <?php
 
-namespace App\Security;
+namespace App\Core\Security\Service;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Service\User\Service\UserService;
+use App\Service\User\Model\UserCreateModel;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;

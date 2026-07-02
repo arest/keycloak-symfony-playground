@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Security;
+namespace App\Service\User\Service;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
-
+use App\Service\User\Model\UserCreateModel;
 /**
  * Manages user creation and updates sourced from Keycloak data.
  */

@@ -11,6 +11,8 @@ class LoginController extends AbstractController
 {
     public function __construct(
         private readonly KeycloakPkceClient $keycloakPkceClient,
+        private readonly string $keycloakServerUrl,
+        private readonly string $keycloakServerUrlExternal,
     ) {
     }
 
@@ -25,8 +27,8 @@ class LoginController extends AbstractController
         ]);
 
         $externalAuthUrl = str_replace(
-            'http://keycloak:8080',
-            'http://localhost:8081',
+            $this->keycloakServerUrl,
+            $this->keycloakServerUrlExternal,
             $redirect->getTargetUrl(),
         );
         $redirect->setTargetUrl($externalAuthUrl);

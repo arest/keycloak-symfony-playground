@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Security;
+namespace App\Core\Validation;
 
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Validator\ConstraintViolation;

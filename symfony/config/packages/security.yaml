@@ -6,7 +6,7 @@ security:
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
         app_user:
-            id: App\Security\UserProvider
+            id: App\Core\Security\Service\UserProvider
 
     firewalls:
         dev:
@@ -18,7 +18,7 @@ security:
             provider: app_user
 
             custom_authenticators:
-                - App\Security\KeycloakAuthenticator
+                - App\Core\Security\Service\KeycloakAuthenticator
 
             # Allow anonymous access to login routes
             pattern: ^/
@@ -30,8 +30,8 @@ security:
         # Allow unauthenticated access to login and health routes
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/health, roles: PUBLIC_ACCESS }
-        # All other routes require authentication (optional for now)
-        # - { path: ^/, roles: IS_AUTHENTICATED_FULLY }
+        # API routes require full authentication
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:

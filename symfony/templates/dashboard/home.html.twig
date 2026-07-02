@@ -6,7 +6,7 @@
     <h1>Keycloak SSO Playground</h1>
     <p>Welcome to the Symfony BFF (Backend-for-Frontend) demo.</p>
     <p>
-        {% if app.session and app.session.get('oidc_user') is not null %}
+        {% if token_storage.isAuthenticated %}
             You are logged in. <a href="{{ path('dashboard') }}">Go to Dashboard</a>
         {% else %}
             <a href="{{ path('login') }}">Login with Keycloak</a>

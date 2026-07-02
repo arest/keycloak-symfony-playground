@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Security;
+namespace App\Service\User\Service;
 
 use App\Entity\User;
+use App\Service\User\Model\UserCreateModel;
+use App\Core\Validation\SupportValidation;
 
 /**
  * Facade for user creation and update operations.
