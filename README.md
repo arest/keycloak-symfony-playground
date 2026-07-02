@@ -112,8 +112,8 @@ A hands-on learning project demonstrating the **Backend-for-Frontend (BFF) patte
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (for the backend stack: PostgreSQL, Keycloak, PHP, Nginx)
-- **Node.js 18+** (for the Next.js SPA — runs outside Docker)
-- **npm** or **yarn** (for installing Next.js dependencies)
+- **Node.js 18+** (for the Next.js SPA — runs outside Docker, optional if using Docker Compose)
+- **npm** or **yarn** (for installing Next.js dependencies, optional if using Docker Compose)
 - **curl** (for API-only demo flows)
 
 ---
@@ -140,13 +140,25 @@ docker compose exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s 
 
 > **Note:** This fix is stored in the PostgreSQL volume. It survives `restart` and `up/down`, but if you delete the volume (`docker compose down -v`) you need to run it again.
 
-### 3. Start the Next.js SPA
+### 3. (Option A) Start the Next.js SPA with Docker Compose
+
+The Next.js app is now included as a service in `compose.yml`. Run everything together:
+
+```bash
+docker compose up -d --build
+```
+
+This starts all 5 services: PostgreSQL, Keycloak, PHP-FPM, Nginx, and the Next.js dev server.
+
+### 3. (Option B) Start the Next.js SPA manually (without Docker)
 
 ```bash
 cd nextjs-app
 npm install
 npm run dev
 ```
+
+---
 
 ### 4. Open the app
 
@@ -182,6 +194,7 @@ npm run dev
 | `keycloak` | `quay.io/keycloak/keycloak:26.1` | 8080 | 8081 | Identity Provider, realm import |
 | `php` | Custom (`php:8.3-fpm-alpine`) | 9000 | — | Symfony runtime (PHP-FPM) |
 | `nginx` | `nginx:alpine` | 80 | 8080 | Reverse proxy to PHP-FPM |
+| `nextjs` | Custom (`node:22-alpine`) | 3000 | 3000 | Next.js SPA dev server (hot-reload) |
 
 All services share a single `internal` Docker bridge network. Data persistence is provided by the `pgdata` volume.
 

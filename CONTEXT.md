@@ -98,6 +98,3 @@ Also supports **API-only demo** — README includes curl examples for the full O
 - **Symfony** (BFF) handles the OIDC flow, validates tokens, maps roles, and serves the session to the frontend
 - **Next.js** (SPA) renders the UI; it talks to Symfony, not directly to Keycloak
 
-## Flagged ambiguities
-
-- The repo name uses "Keycloack" (with a 'c') — the correct spelling is **Keycloak**. Will keep the repo name as-is for now since it's cosmetic.

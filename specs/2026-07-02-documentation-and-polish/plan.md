@@ -40,4 +40,3 @@
 - [ ] Review nginx config — check routes, proxy settings
 - [ ] Review Next.js pages — check API URLs, error handling
 - [ ] Verify no TODO comments, debug code, or stale references remain
-- [ ] Verify repository name typo ("Keycloack") is consistently used everywhere

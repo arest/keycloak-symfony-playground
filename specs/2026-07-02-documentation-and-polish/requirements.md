@@ -50,5 +50,4 @@ Per `specs/tech-stack.md`, the project uses:
 | API examples | curl commands | Available everywhere, zero setup, copy-paste ready |
 | Interview format | Bullet-point talking points | Quick to scan, easy to expand during conversation |
 | Clean-clone test | Manual `git clone` to temp dir | Realistic fresh-start validation without CI |
-| Final review approach | Per-file checklist walkthrough | Systematic coverage without automation |
-| Repository name typo | Keep "Keycloack" as-is | Consistent naming avoids confusion; rename is out of scope |
+| Final review approach | Per-file checklist walkthrough | Systematic coverage without automation

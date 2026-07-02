@@ -38,7 +38,6 @@
 ## Constraints
 
 - OIDC client uses Authorization Code flow without PKCE (confidential client with server-side secret)
-- Keycloak is configured for a single realm (`playground`) with two users (`user1`, `admin1`)
+- keycloak is configured for a single realm (`playground`) with two users (`user1`, `admin1`)
 - No TLS — HTTP only (development environment)
 - Single PostgreSQL instance shared between Keycloak and Symfony (separate databases)
-- Repository name uses "Keycloack" (typo) — kept as-is for now

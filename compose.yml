@@ -53,6 +53,26 @@ services:
     networks:
       - internal
 
+  nextjs:
+    build:
+      context: .
+      dockerfile: ./docker/nextjs/Dockerfile
+    container_name: nextjs-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nextjs-app:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      # Used at runtime by the browser (public env var embedded in JS bundle)
+      NEXT_PUBLIC_SYMFONY_URL: http://localhost:8080
+    depends_on:
+      - nginx
+    networks:
+      - internal
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     container_name: keycloak-server
