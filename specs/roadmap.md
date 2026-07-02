@@ -26,33 +26,33 @@
 - [x] Configure session management (framework.yaml)
 - [x] Verify full login/logout flow with browser
 
-## Phase 4: User Entity & Database  🔶
+## Phase 4: User Entity & Database  ✅
 - [x] Configure Doctrine with PostgreSQL (`symfony` database)
-- [ ] Create `User` entity: id, keycloakId, email, username, roles (JSON), lastLogin
-- [ ] Implement UserProvider / OIDC user creation on first login
-- [ ] Sync roles from Keycloak token to local User entity
+- [x] Create `User` entity: id, keycloakId, email, username, roles (JSON), lastLogin
+- [x] Implement UserProvider / OIDC user creation on first login
+- [x] Sync roles from Keycloak token to local User entity
 - [x] Configure DB-backed session storage
-- [ ] Verify user is persisted after first successful login
+- [x] Verify user is persisted after first successful login
 
-## Phase 5: API Endpoints  ❌
-- [ ] Implement `/api/me` — return current user info from token
-- [ ] Implement `/api/protected` — demonstrate role-based access (ADMIN required)
-- [ ] Add voter/security configuration for role-based access control
-- [ ] Add token refresh handling
-- [ ] Verify endpoints with browser session
+## Phase 5: API Endpoints  ✅
+- [x] Implement `/api/me` — return current user info from token
+- [x] Implement `/api/protected` — demonstrate role-based access (ADMIN required)
+- [x] Add voter/security configuration for role-based access control
+- [x] Add token refresh handling
+- [x] Verify endpoints with browser session
 
 ## Phase 6: Next.js SPA  ❌
-- [ ] Scaffold Next.js app (local, port 3000)
-- [ ] Build Login page — button linking to Symfony `/login`
-- [ ] Build Profile page — fetch `/api/me` from Symfony
-- [ ] Build Protected page — fetch `/api/protected` from Symfony
-- [ ] Wire up navigation between pages
-- [ ] Verify full end-to-end flow: login → profile → protected resource → logout
+- [x] Scaffold Next.js app (local, port 3000)
+- [x] Build Login page — button linking to Symfony `/login`
+- [x] Build Profile page — fetch `/api/me` from Symfony
+- [x] Build Protected page — fetch `/api/protected` from Symfony
+- [x] Wire up navigation between pages
+- [x] Verify full end-to-end flow: login → profile → protected resource → logout
 
 ## Phase 7: Documentation & Polish  🔶
-- [x] Write comprehensive README.md with architecture diagram
+- [ ] Write comprehensive README.md with architecture diagram
 - [ ] Document curl examples for API-only OIDC flow
-- [x] Document manual Keycloak admin UI access (localhost:8081)
+- [ ] Document manual Keycloak admin UI access (localhost:8081)
 - [ ] Add interview talking points for SSO, OIDC, BFF pattern
 - [ ] Verify all `docker compose` commands work from clean clone
 - [ ] Final review of all files and configs

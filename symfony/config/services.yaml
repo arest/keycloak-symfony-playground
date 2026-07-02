@@ -4,6 +4,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Frontend host for building absolute redirect URLs after login etc.
+    frontend-host: '%env(FRONTEND_HOST)%'
+
     # PDO session handler DSN for PostgreSQL
     pdo-session-dsn: 'pgsql:host=postgres;port=5432;dbname=symfony;user=keycloak;password=keycloak'
 
@@ -25,6 +28,7 @@ services:
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
             # Scalar constructor arguments — Symfony cannot autowire these automatically
+            $frontendHost: '%frontend-host%'
             $keycloakServerUrl: '%keycloak-server-url%'
             $keycloakServerUrlExternal: '%keycloak-server-url-external%'
             $keycloakRealm: '%keycloak-realm%'

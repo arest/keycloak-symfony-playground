@@ -82,7 +82,7 @@ class KeycloakAuthenticator extends OAuth2Authenticator implements Authenticatio
             }
         }
 
-        return new RedirectResponse($this->router->generate('dashboard'));
+        return new RedirectResponse($this->router->generate('profile'));
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response

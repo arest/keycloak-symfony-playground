@@ -1,3 +1,10 @@
+profile:
+    path: /profile
+    controller: Symfony\Bundle\FrameworkBundle\Controller\RedirectController
+    defaults:
+        path: '%frontend-host%/profile'
+        permanent: false
+
 controllers:
     resource:
         path: ../src/Controller/
