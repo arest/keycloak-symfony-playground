@@ -535,6 +535,91 @@ ID_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.id_token')
 curl -v "http://localhost:8081/realms/playground/protocol/openid-connect/logout?post_logout_redirect_uri=http://localhost:3000&id_token_hint=$ID_TOKEN"
 ```
 
+### 6. Machine-to-Machine (Client Credentials) Flow
+
+This flow demonstrates **service-to-service authentication** using the OAuth2 Client Credentials grant. No user interaction is required — the `service-app` client authenticates directly with its `client_id` and `client_secret`.
+
+```bash
+# Get a service account token (no user context)
+curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=service-app" \
+  -d "client_secret=service-app-secret" | jq .
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "expires_in": 300,
+  "token_type": "Bearer",
+  "scope": "profile email"
+}
+```
+
+The token includes `realm-management` roles (`manage-users`, `view-users`) for Keycloak Admin API access:
+
+```json
+{
+  "resource_access": {
+    "realm-management": {
+      "roles": ["manage-users", "view-users"]
+    }
+  }
+}
+```
+
+#### List Users via Admin API
+
+```bash
+SVC_TOKEN=$(curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=service-app" \
+  -d "client_secret=service-app-secret" | jq -r '.access_token')
+
+curl -s -H "Authorization: Bearer $SVC_TOKEN" \
+  "http://localhost:8081/admin/realms/playground/users" | jq .
+```
+
+#### Create a User via Admin API
+
+```bash
+SVC_TOKEN=$(curl -s -X POST http://localhost:8081/realms/playground/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=service-app" \
+  -d "client_secret=service-app-secret" | jq -r '.access_token')
+
+curl -s -X POST -H "Authorization: Bearer $SVC_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","email":"newuser@playground.local","enabled":true}' \
+  "http://localhost:8081/admin/realms/playground/users" | jq .
+```
+
+#### Via Symfony BFF (requires admin session)
+
+The Symfony BFF proxies the Keycloak Admin API through a session-protected endpoint using the service account internally:
+
+```bash
+# First, log in as admin1 via the browser (http://localhost:8080/login)
+# Then capture the PHPSESSID cookie from the browser
+
+# List users via Symfony BFF
+curl http://localhost:8080/api/admin/users \
+  -H "Cookie: PHPSESSID=<your-admin-session-id>" | jq .
+
+# Create a user via Symfony BFF
+curl -X POST http://localhost:8080/api/admin/users \
+  -H "Cookie: PHPSESSID=<your-admin-session-id>" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","email":"newuser@playground.local"}' | jq .
+```
+
+> **Note:** The Password Grant (steps 1-5) uses the user's username + password. The Client Credentials grant uses a client ID + client secret with **no user context** — it's purely for backend service communication.
+
 ---
 
 ## Token Refresh

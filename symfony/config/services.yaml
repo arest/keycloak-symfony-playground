@@ -15,6 +15,13 @@ parameters:
     keycloak-server-url-external: '%env(OAUTH_KEYCLOAK_SERVER_URL_EXTERNAL)%'
     keycloak-realm: '%env(OAUTH_KEYCLOAK_REALM)%'
 
+    # Service app (Client Credentials) settings
+    keycloak-service-client-id: '%env(OAUTH_KEYCLOAK_SERVICE_CLIENT_ID)%'
+    keycloak-service-client-secret: '%env(OAUTH_KEYCLOAK_SERVICE_CLIENT_SECRET)%'
+
+    # Inline-constructed token URL for the Client Credentials grant
+    keycloak-service-token-url: '%keycloak-server-url%/realms/%keycloak-realm%/protocol/openid-connect/token'
+
 services:
     # DB-backed session handler using PDO (not loaded in test env — mock_file is used there)
     session.handler.pdo:
@@ -32,6 +39,9 @@ services:
             $keycloakServerUrl: '%keycloak-server-url%'
             $keycloakServerUrlExternal: '%keycloak-server-url-external%'
             $keycloakRealm: '%keycloak-realm%'
+            # Bind the service-account provider by type+name so autowiring resolves
+            # GenericProvider $provider to our custom service ID (not the FQCN).
+            League\OAuth2\Client\Provider\GenericProvider $provider: '@keycloak.service_account_provider'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -41,6 +51,21 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+
+    # Explicit service definition for the GenericProvider used by ServiceAccountAuthenticator.
+    # Rather than constructing it with 'new' inside the service (DI violation),
+    # we define it declaratively here so the container injects a fully-configured instance.
+    # Uses a custom service ID instead of the FQCN to avoid class-name collisions.
+    keycloak.service_account_provider:
+        class: League\OAuth2\Client\Provider\GenericProvider
+        arguments:
+            $options:
+                clientId: '%keycloak-service-client-id%'
+                clientSecret: '%keycloak-service-client-secret%'
+                urlAuthorize: ''
+                urlAccessToken: '%keycloak-service-token-url%'
+                urlResourceOwnerDetails: ''
+            $collaborators: []
 
     # Expose TokenStorage as a Twig global so templates don't read session keys directly
     App\Core\Security\Service\TokenStorage:

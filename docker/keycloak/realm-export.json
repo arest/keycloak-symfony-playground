@@ -258,6 +258,21 @@
       "clientRoles": {},
       "requiredActions": [],
       "groups": []
+    },
+    {
+      "id": "b1b2c3d4-0001-0000-0000-000000000003",
+      "username": "service-account-service-app",
+      "enabled": true,
+      "emailVerified": false,
+      "realmRoles": [],
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "manage-users"
+        ]
+      },
+      "requiredActions": [],
+      "groups": []
     }
   ],
   "clients": [
@@ -372,6 +387,27 @@
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:3000"
       }
+    },
+    {
+      "id": "a1b2c3d4-ffff-0000-0000-000000100003",
+      "clientId": "service-app",
+      "name": "Service Application",
+      "description": "Service account for machine-to-machine Client Credentials flow",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "consentRequired": false,
+      "fullScopeAllowed": false,
+      "secret": "service-app-secret",
+      "redirectUris": [],
+      "webOrigins": [],
+      "attributes": {}
     }
   ],
   "clientScopes": [
