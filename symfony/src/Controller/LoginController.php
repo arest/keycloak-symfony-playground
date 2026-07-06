@@ -11,29 +11,19 @@ class LoginController extends AbstractController
 {
     public function __construct(
         private readonly KeycloakPkceClient $keycloakPkceClient,
-        private readonly string $keycloakServerUrl,
-        private readonly string $keycloakServerUrlExternal,
     ) {
     }
 
     #[Route('/login', name: 'login')]
     public function login(): RedirectResponse
     {
-        $redirect = $this->keycloakPkceClient->redirect([
+        return $this->keycloakPkceClient->redirect([
             'openid',
             'profile',
             'email',
             'roles',
         ]);
 
-        $externalAuthUrl = str_replace(
-            $this->keycloakServerUrl,
-            $this->keycloakServerUrlExternal,
-            $redirect->getTargetUrl(),
-        );
-        $redirect->setTargetUrl($externalAuthUrl);
-
-        return $redirect;
     }
 
     /**

@@ -1,3 +1,10 @@
+x-extra-hosts: &extra-hosts
+  extra_hosts:
+    - "keycloak.playground.dev:host-gateway"
+    - "symfony.playground.dev:host-gateway"
+    - "vikunja.playground.dev:host-gateway"
+    - "nextjs.playground.dev:host-gateway"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -15,6 +22,7 @@ services:
       start_period: 10s
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
     networks:
       - internal
 
@@ -32,6 +40,7 @@ services:
         condition: service_healthy
     networks:
       - internal
+    <<: *extra-hosts
 
   php:
     build:
@@ -42,8 +51,8 @@ services:
       - ./symfony:/var/www/symfony
     environment:
       DATABASE_URL: postgresql://keycloak:keycloak@postgres:5432/symfony?serverVersion=16&charset=utf8
-      OAUTH_KEYCLOAK_SERVER_URL_INTERNAL: http://keycloak:8080
-      OAUTH_KEYCLOAK_SERVER_URL_EXTERNAL: http://localhost:8081
+      # Single URL — works inside containers (via extra_hosts) AND from browser (via /etc/hosts)
+      OAUTH_KEYCLOAK_SERVER_URL: http://keycloak.playground.dev:8081
     healthcheck:
       test: ["CMD-SHELL", "php-fpm -t || exit 1"]
       interval: 10s
@@ -52,6 +61,7 @@ services:
       start_period: 10s
     networks:
       - internal
+    <<: *extra-hosts
 
   nextjs:
     build:
@@ -66,15 +76,49 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      # Used at runtime by the browser (public env var embedded in JS bundle)
-      NEXT_PUBLIC_SYMFONY_URL: http://localhost:8080
+      # Works from browser (via /etc/hosts) — no more localhost
+      NEXT_PUBLIC_SYMFONY_URL: http://symfony.playground.dev:8080
     depends_on:
       - nginx
     networks:
       - internal
+    <<: *extra-hosts
+
+  vikunja:
+    image: vikunja/vikunja:latest
+    container_name: vikunja
+    restart: unless-stopped
+    ports:
+      - "9030:3456"
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - vikunja-files:/app/vikunja/files
+      - ./docker/vikunja/configs/config.yml:/app/vikunja/config.yml:ro
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: http://vikunja.playground.dev:9030
+      VIKUNJA_DATABASE_TYPE: postgres
+      VIKUNJA_DATABASE_HOST: postgres
+      VIKUNJA_DATABASE_PORT: "5432"
+      VIKUNJA_DATABASE_DATABASE: vikunja
+      VIKUNJA_DATABASE_USER: vikunja
+      VIKUNJA_DATABASE_PASSWORD: vikunja
+      VIKUNJA_DATABASE_SSLMODE: disable
+      VIKUNJA_AUTH_OPENID_ENABLED: "true"
+      VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_NAME: Keycloak
+      VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_AUTHURL: http://keycloak.playground.dev:8081/realms/playground
+      VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_LOGOUTURL: http://keycloak.playground.dev:8081/realms/playground/protocol/openid-connect/logout
+      VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_CLIENTID: vikunja
+      VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_CLIENTSECRET: vikunja-secret
+      VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_SCOPE: openid profile email vikunja_scope
+      VIKUNJA_AUTH_LOCAL_ENABLED: "false"
+    <<: *extra-hosts
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.1
+    build: ./docker/keycloak
     container_name: keycloak-server
     command: start-dev --import-realm
     restart: unless-stopped
@@ -87,8 +131,10 @@ services:
       KC_DB_PASSWORD: keycloak
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-      KC_HOSTNAME: http://localhost:8081
       KC_HTTP_ENABLED: "true"
+      # Keycloak uses KC_HOSTNAME in redirect URIs — must match what the browser sees
+      KC_HOSTNAME: http://keycloak.playground.dev:8081
+      KC_FEATURES: scripts
     volumes:
       - ./docker/keycloak:/opt/keycloak/data/import
     healthcheck:
@@ -102,9 +148,11 @@ services:
         condition: service_healthy
     networks:
       - internal
+    <<: *extra-hosts
 
 volumes:
   pgdata:
+  vikunja-files:
 
 networks:
   internal:

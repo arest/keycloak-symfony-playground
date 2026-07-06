@@ -12,7 +12,6 @@ parameters:
 
     # Keycloak connection settings
     keycloak-server-url: '%env(OAUTH_KEYCLOAK_SERVER_URL)%'
-    keycloak-server-url-external: '%env(OAUTH_KEYCLOAK_SERVER_URL_EXTERNAL)%'
     keycloak-realm: '%env(OAUTH_KEYCLOAK_REALM)%'
 
     # Service app (Client Credentials) settings
@@ -37,7 +36,6 @@ services:
             # Scalar constructor arguments — Symfony cannot autowire these automatically
             $frontendHost: '%frontend-host%'
             $keycloakServerUrl: '%keycloak-server-url%'
-            $keycloakServerUrlExternal: '%keycloak-server-url-external%'
             $keycloakRealm: '%keycloak-realm%'
             # Bind the service-account provider by type+name so autowiring resolves
             # GenericProvider $provider to our custom service ID (not the FQCN).

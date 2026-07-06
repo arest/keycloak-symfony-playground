@@ -69,6 +69,24 @@
       }
     ],
     "client": {
+      "vikunja": [
+        {
+          "id": "a1b2c3d4-0001-0000-0000-000000000030",
+          "name": "general",
+          "description": "Default Vikunja team for general access",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "a1b2c3d4-ffff-0000-0000-000000100004"
+        },
+        {
+          "id": "a1b2c3d4-0001-0000-0000-000000000031",
+          "name": "admin",
+          "description": "Vikunja admin team",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "a1b2c3d4-ffff-0000-0000-000000100004"
+        }
+      ],
       "realm-management": [
         {
           "id": "a1b2c3d4-0001-0000-0000-000000000010",
@@ -232,7 +250,11 @@
       "realmRoles": [
         "USER"
       ],
-      "clientRoles": {},
+      "clientRoles": {
+        "vikunja": [
+          "general"
+        ]
+      },
       "requiredActions": [],
       "groups": []
     },
@@ -255,7 +277,12 @@
         "USER",
         "ADMIN"
       ],
-      "clientRoles": {},
+      "clientRoles": {
+        "vikunja": [
+          "general",
+          "admin"
+        ]
+      },
       "requiredActions": [],
       "groups": []
     },
@@ -379,13 +406,15 @@
       "fullScopeAllowed": true,
       "secret": "symfony-bff-secret",
       "redirectUris": [
-        "http://localhost:8080/login/check"
+        "http://localhost:8080/login/check",
+        "http://symfony.playground.dev:8080/login/check"
       ],
       "webOrigins": [
-        "http://localhost:8080"
+        "http://localhost:8080",
+        "http://symfony.playground.dev:8080"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:3000"
+        "post.logout.redirect.uris": "http://nextjs.playground.dev:3000"
       }
     },
     {
@@ -408,6 +437,37 @@
       "redirectUris": [],
       "webOrigins": [],
       "attributes": {}
+    },
+    {
+      "id": "a1b2c3d4-ffff-0000-0000-000000100004",
+      "clientId": "vikunja",
+      "name": "Vikunja",
+      "description": "Vikunja To-Do Application OIDC client",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "consentRequired": false,
+      "fullScopeAllowed": true,
+      "secret": "vikunja-secret",
+      "rootUrl": "http://vikunja.playground.dev:9030",
+      "redirectUris": [
+        "/auth/openid/keycloak"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      },
+      "optionalClientScopes": [
+        "vikunja_scope"
+      ]
     }
   ],
   "clientScopes": [
@@ -735,6 +795,33 @@
             "claim.name": "groups",
             "jsonType.label": "String",
             "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "id": "a1b2c3d4-ffff-0000-0000-200000000011",
+      "name": "vikunja_scope",
+      "description": "Custom scope for Vikunja team mapping via script mapper",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "id": "a1b2c3d4-ffff-0000-0000-300000000090",
+          "name": "vikunja_groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "script-vikunja-mapper.js",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "false",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "claim.name": "vikunja_groups",
+            "jsonType.label": "JSON",
+            "multivalued": "true"
           }
         }
       ]

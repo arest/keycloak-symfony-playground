@@ -186,6 +186,44 @@ npm run dev
 
 ---
 
+### 6. (Optional) Use friendly hostnames instead of localhost
+
+The project supports custom hostnames (`*.playground.dev`) that work both **from your browser** and **inside Docker containers** — eliminating the dual-URL problem (e.g. `OAUTH_KEYCLOAK_SERVER_URL_INTERNAL` vs `EXTERNAL`).
+
+#### How it works
+
+| Context | `keycloak.playground.dev:8081` routes to… |
+|---|---|
+| **Browser (host)** | `/etc/hosts` → `127.0.0.1` → port 8081 → Keycloak container |
+| **Inside containers** | `extra_hosts` → `host-gateway` → host IP → port 8081 → Keycloak container |
+
+#### Setup
+
+Add these lines to `/etc/hosts` on your Mac or Linux:
+
+```bash
+sudo sh -c 'echo "127.0.0.1 keycloak.playground.dev symfony.playground.dev vikunja.playground.dev nextjs.playground.dev" >> /etc/hosts'
+```
+
+The matching `extra_hosts` entries are already defined in `compose.yml` via a shared YAML anchor, applied to all services that need them.
+
+#### What changes
+
+Once configured, you can use the friendly hostnames everywhere:
+
+| Instead of… | Use… |
+|---|---|
+| `http://localhost:8081` | `http://keycloak.playground.dev:8081` (Keycloak) |
+| `http://localhost:8080` | `http://symfony.playground.dev:8080` (Symfony BFF) |
+| `http://localhost:9030` | `http://vikunja.playground.dev:9030` (Vikunja) |
+| `http://localhost:3000` | `http://nextjs.playground.dev:3000` (Next.js — add manually if desired) |
+
+The `compose.yml` environment variables (`KC_HOSTNAME`, `NEXT_PUBLIC_SYMFONY_URL`, `VIKUNJA_SERVICE_PUBLICURL`, Vikunja's OIDC `AUTHURL`, etc.) already reference the `*.playground.dev` hostnames.
+
+> **Note:** Add `nextjs.playground.dev` to `/etc/hosts` too if you want a matching hostname for the Next.js SPA.
+
+---
+
 ## Services Overview
 
 | Service | Docker Image | Internal Port | External Port | Purpose |

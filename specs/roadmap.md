@@ -67,7 +67,16 @@
 - [x] Document curl demo: client credentials grant → admin API call
 - [ ] Verify machine-to-machine flow without any user interaction (pending full browser-based end-to-end test)
 
-## Phase 9: PKCE Authorization Code Flow  ⬜
+## Phase 9: Cross-Application SSO Verification  ⬜
+- [ ] Add a second application service to Docker Compose (e.g. Vikunja)
+- [ ] Register the second app as an OIDC client in realm-export.json
+- [ ] Configure the second app to use the existing `playground` realm for authentication
+- [ ] Verify SSO: login via Symfony BFF → navigate to second app → no re-authentication prompt
+- [ ] Verify global logout: logout from one app → second app also requires re-authentication
+- [ ] Update architecture diagram in README.md to show second app
+- [ ] Document the SSO flow end-to-end with sequence diagram
+
+## Phase 10: PKCE Authorization Code Flow  ⬜
 - [ ] Add `spa-client` public client in realm-export.json (Standard Flow, no client secret)
 - [ ] Create a second Symfony route `/login/pkce` that uses PKCE code challenge
 - [ ] Implement PKCE code verifier + challenge generation (S256)
@@ -76,11 +85,4 @@
 - [ ] Document the difference between confidential client (Phase 3) and PKCE public client
 - [ ] Verify PKCE flow works end-to-end (login → callback → session)
 
-## Phase 10: Cross-Application SSO Verification  ⬜
-- [ ] Add a second application service to Docker Compose (e.g. Grafana)
-- [ ] Register the second app as an OIDC client in realm-export.json
-- [ ] Configure the second app to use the existing `playground` realm for authentication
-- [ ] Verify SSO: login via Symfony BFF → navigate to second app → no re-authentication prompt
-- [ ] Verify global logout: logout from one app → second app also requires re-authentication
-- [ ] Update architecture diagram in README.md to show second app
-- [ ] Document the SSO flow end-to-end with sequence diagram
+

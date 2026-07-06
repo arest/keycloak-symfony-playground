@@ -12,7 +12,7 @@ class LogoutController extends AbstractController
 {
     public function __construct(
         private readonly TokenStorage $tokenStorage,
-        private readonly string $keycloakServerUrlExternal,
+        private readonly string $keycloakServerUrl,
         private readonly string $keycloakRealm,
         private readonly string $frontendHost
     ) {
@@ -31,7 +31,7 @@ class LogoutController extends AbstractController
         // Build Keycloak logout URL
         $keycloakLogoutUrl = sprintf(
             '%s/realms/%s/protocol/openid-connect/logout',
-            $this->keycloakServerUrlExternal,
+            $this->keycloakServerUrl,
             $this->keycloakRealm
         );
 
