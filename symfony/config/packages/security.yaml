@@ -20,18 +20,21 @@ security:
             custom_authenticators:
                 - App\Core\Security\Service\KeycloakAuthenticator
 
-            # Allow anonymous access to login routes
+            # Allow anonymous access before authentication
             pattern: ^/
             security: true
 
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
-        # Allow unauthenticated access to login and health routes
+        # Admin routes — require the adminPanel.access permission
+        - { path: ^/admin, roles: !php/const App\Core\AccessControl\Permission\Config\GeneralPermissionStorage::ADMIN_PANEL_ACCESS }
+        # Login and health routes — public
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/health, roles: PUBLIC_ACCESS }
         # API routes require full authentication
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+
 
 when@test:
     security:

@@ -1,0 +1,26 @@
+parameters:
+    # ─── Role → Permission Mapping ─────────────────────────────────
+    #
+    # Maps Keycloak realm roles (normalised to Symfony ROLE_* format) to
+    # granular application permissions. Extracted from the ID token on
+    # login and stored in the session.
+    #
+    # PermissionVoter checks these permissions at runtime.
+    #
+    # To add a new permission:
+    #   1. Add it here under the desired role(s)
+    #   2. Define a constant in GeneralPermissionStorage if used in code
+    #   3. Use @IsGranted() or $this->denyAccessUnlessGranted() in controllers
+    app.permissions.mapping:
+        ROLE_ADMIN:
+            - admin
+            - adminPanel.access
+            - user.view
+            - user.manage
+            - user.delete
+            - settings.view
+            - settings.edit
+        ROLE_USER:
+            - user.access
+            - profile.view
+            - profile.edit

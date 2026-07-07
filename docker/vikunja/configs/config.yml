@@ -1,9 +1,13 @@
 auth:
+  local:
+    enabled: false
   openid:
     enabled: true
     redirecturl: http://vikunja.playground.dev:9030/auth/openid/
     providers:
       keycloak:
+        usernamefallback: true
+        emailfallback: true
         name: Keycloak
         authurl: https://keycloak.playground.dev:8081/realms/playground
         logouturl: https://keycloak.playground.dev:8081/realms/playground/protocol/openid-connect/logout

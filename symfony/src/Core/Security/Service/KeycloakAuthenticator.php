@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Core\Security\Service;
 
+use App\Core\AccessControl\Permission\Service\PermissionProvider;
 use App\Core\Security\Service\UserProvider;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
@@ -30,6 +33,7 @@ class KeycloakAuthenticator extends OAuth2Authenticator implements Authenticatio
         private readonly RouterInterface $router,
         private readonly UserProvider $userProvider,
         private readonly TokenStorage $tokenStorage,
+        private readonly PermissionProvider $permissionProvider,
     ) {
     }
 
@@ -72,6 +76,12 @@ class KeycloakAuthenticator extends OAuth2Authenticator implements Authenticatio
 
         if ($accessToken && $userData) {
             $this->tokenStorage->saveTokens($accessToken, $userData);
+
+            // Resolve and cache granular permissions from Keycloak realm roles
+            $user = $token->getUser();
+            if ($user instanceof \App\Entity\User) {
+                $this->permissionProvider->setUserPermissions($user);
+            }
 
             $session = $request->getSession();
             if ($session instanceof Session) {

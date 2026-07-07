@@ -1,0 +1,15 @@
+easy_admin:
+    # The dashboard route is defined via #[AdminDashboard] attribute on
+    # App\Controller\Admin\DashboardController.
+    #
+    # Site name used in the dashboard layout.
+    site_name: 'Playground Admin'
+    
+    # Design customisation
+    design:
+        brand_color: '#1d4ed8'
+        form_theme: '@EasyAdmin/form/bootstrap_5.html.twig'
+    
+    # List of backend entities and their controllers
+    entities:
+        - App\Controller\Admin\UserCrudController

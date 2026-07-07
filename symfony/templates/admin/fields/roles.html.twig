@@ -1,0 +1,13 @@
+{# @var value array #}
+{% if value is iterable and value|length > 0 %}
+    {% for role in value %}
+        <span class="badge rounded-pill 
+            {% if 'ADMIN' in role %}bg-warning text-dark
+            {% elseif 'USER' in role %}bg-info text-dark
+            {% else %}bg-secondary{% endif %}">
+            {{ role }}
+        </span>
+    {% endfor %}
+{% else %}
+    <span class="badge bg-light text-muted">none</span>
+{% endif %}

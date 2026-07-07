@@ -1,5 +1,17 @@
 knpu_oauth2_client:
     clients:
+        # Confidential client used by EasyAdmin / admin panel
+        keycloak:
+            type: keycloak
+            client_id: '%env(OAUTH_KEYCLOAK_CLIENT_ID)%'
+            client_secret: '%env(OAUTH_KEYCLOAK_CLIENT_SECRET)%'
+            redirect_route: login_check
+            redirect_params: { }
+            auth_server_url: '%env(OAUTH_KEYCLOAK_SERVER_URL)%'
+            realm: '%env(OAUTH_KEYCLOAK_REALM)%'
+            use_state: false
+            version: '26.1'
+        # Public client (PKCE) used for the SPA-facing login
         keycloak_pkce:
             type: keycloak_pkce
             client_id: '%env(OAUTH_KEYCLOAK_CLIENT_ID)%'

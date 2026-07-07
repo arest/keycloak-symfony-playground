@@ -65,10 +65,26 @@ services:
                 urlResourceOwnerDetails: ''
             $collaborators: []
 
+    # App\Core\Security\Service\KeycloakAdminAuthenticatorInterface:
+    #     class: App\Core\Security\Service\KeycloakAdminAuthenticator
+
     # Expose TokenStorage as a Twig global so templates don't read session keys directly
     App\Core\Security\Service\TokenStorage:
         tags:
             - { name: twig.global, alias: token_storage }
+
+    # ── RBAC / Permission services ─────────────────────────────────
+    #
+    # RolePermissionMapper receives the YAML mapping so it's not tied
+    # to a bundle extension — just DI + parameter.
+    App\Core\AccessControl\Permission\Config\RolePermissionMapper:
+        arguments:
+            $mapping: '%app.permissions.mapping%'
+
+    # Bind the cache interface to the session-backed implementation.
+    # Swap to a Redis-backed implementation here when needed.
+    App\Core\AccessControl\Permission\Service\PermissionCacheInterface:
+        class: App\Core\AccessControl\Permission\Service\SessionPermissionCache
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
