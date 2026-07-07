@@ -1,6 +1,4 @@
-# Keycloack SSO Playground
-
-> **Note:** The repository name spells "Keycloack" (with a 'c') — a known typo. The correct spelling is **Keycloak**. Kept as-is for consistency.
+# Keycloak SSO Playground
 
 A hands-on learning project demonstrating the **Backend-for-Frontend (BFF) pattern** with **Symfony** acting as an OIDC/OAuth2 client to **Keycloak**, serving a **Next.js SPA**. Built for interview preparation and as a reference implementation for SSO architecture using the BFF security pattern.
 
@@ -241,7 +239,7 @@ All services share a single `internal` Docker bridge network. Data persistence i
 ## Directory Structure
 
 ```
-keycloack-playground/
+keycloak-playground/
 │
 ├── docker-compose.yml              # Orchestrates all 4 services
 ├── README.md                       # This file
@@ -935,4 +933,3 @@ ApiAccessVoter
 - [x] Next.js `config.ts` — SYMFONY_URL defaults to http://localhost:8080
 - [x] Next.js `.env.example` — documents NEXT_PUBLIC_SYMFONY_URL
 - [x] No TODO comments, debug code, or stale references found
-- [x] Repository name typo ("Keycloack") is consistently used throughout

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Core\Security\Service\TokenStorage;
 use App\Core\Security\Voter\ApiAccessVoter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,8 +14,13 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 #[Route('/api', name: 'api_')]
 class ApiController extends AbstractController
 {
+    public function __construct(
+        private readonly TokenStorage $tokenStorage,
+    ) {
+    }
+
     /**
-     * Returns the authenticated user's profile.
+     * Returns the authenticated user's profile along with OIDC tokens.
      *
      * @return JsonResponse User profile or 401 if unauthenticated
      */
@@ -36,6 +42,8 @@ class ApiController extends AbstractController
             'username' => $user->getUsername(),
             'roles' => $user->getRoles(),
             'lastLogin' => $user->getLastLogin()?->format(\DateTimeInterface::ATOM),
+            'accessToken' => $this->tokenStorage->getAccessToken(),
+            'refreshToken' => $this->tokenStorage->getRefreshToken(),
         ]);
     }
 

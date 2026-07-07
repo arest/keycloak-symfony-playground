@@ -3,9 +3,9 @@ knpu_oauth2_client:
         # Confidential client used by EasyAdmin / admin panel
         keycloak:
             type: keycloak
-            client_id: '%env(OAUTH_KEYCLOAK_CLIENT_ID)%'
-            client_secret: '%env(OAUTH_KEYCLOAK_CLIENT_SECRET)%'
-            redirect_route: login_check
+            client_id: '%env(KEYCLOAK_ADMIN_CLIENT_ID)%'
+            client_secret: '%env(KEYCLOAK_ADMIN_CLIENT_SECRET)%'
+            redirect_route: admin_security_check
             redirect_params: { }
             auth_server_url: '%env(OAUTH_KEYCLOAK_SERVER_URL)%'
             realm: '%env(OAUTH_KEYCLOAK_REALM)%'

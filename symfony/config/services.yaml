@@ -65,8 +65,8 @@ services:
                 urlResourceOwnerDetails: ''
             $collaborators: []
 
-    # App\Core\Security\Service\KeycloakAdminAuthenticatorInterface:
-    #     class: App\Core\Security\Service\KeycloakAdminAuthenticator
+    App\Core\Security\Service\KeycloakAdminAuthenticatorInterface:
+        class: App\Core\Security\Service\KeycloakAdminAuthenticator
 
     # Expose TokenStorage as a Twig global so templates don't read session keys directly
     App\Core\Security\Service\TokenStorage:

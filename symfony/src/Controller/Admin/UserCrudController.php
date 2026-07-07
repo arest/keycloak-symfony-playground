@@ -65,9 +65,9 @@ class UserCrudController extends AbstractCrudController
                 ->setRequired(true),
             EmailField::new('email', 'Email')
                 ->setRequired(false),
-            TextField::new('roles', 'Roles')
-                ->formatValue(fn (array $value) => implode(', ', $value))
-                ->setTemplatePath('admin/fields/roles.html.twig'),
+            // TextField::new('roles', 'Roles')
+            //     ->formatValue(fn (array $value) => implode(', ', $value))
+            //     ->setTemplatePath('admin/fields/roles.html.twig'),
             DateTimeField::new('lastLogin', 'Last Login')
                 ->onlyOnIndex(),
             DateTimeField::new('lastLogin', 'Last Login')

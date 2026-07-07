@@ -3,21 +3,32 @@
 namespace App\Controller\Admin;
 
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\Response;
 
-#[AdminDashboard(routePath: '/admin', routeName: 'admin')]
+#[AdminDashboard(routePath: '/admin', routeName: 'admin_dashboard')]
 class DashboardController extends AbstractDashboardController
 {
+    public function __construct(
+        private readonly AdminUrlGenerator $adminUrlGenerator,
+    ) {
+    }
+
     public function index(): Response
     {
-        return parent::index();
 
-        // Option 1. You can make your dashboard redirect to some common page of your backend
-        //
-        // return $this->redirectToRoute('admin_user_index');
+        $defaultController = UserCrudController::class;
+
+        return $this->redirect(
+            $this->adminUrlGenerator->setController($defaultController)
+                ->setAction(Action::INDEX)
+                ->set('menuIndex', 0)
+                ->generateUrl()
+        );
 
         // Option 2. You can make your dashboard redirect to different pages depending on the user
         //
@@ -34,12 +45,12 @@ class DashboardController extends AbstractDashboardController
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
-            ->setTitle('Symfony');
+            ->setTitle('Symfony Keycloak Playground');
     }
 
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
-        yield MenuItem::linkTo(UserCrudController::class, 'The Label', 'fas fa-list');
+        yield MenuItem::linkTo(UserCrudController::class, 'Users', 'fas fa-users');
     }
 }

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Core\Security\Service;
 
+use App\Core\Security\Service\UserProvider;
 use App\Entity\User;
-use App\Repository\UserRepository;
 use InvalidArgumentException;
 use KnpU\OAuth2ClientBundle\Client\Provider\KeycloakClient;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
@@ -23,7 +23,7 @@ class KeycloakAdminAuthenticator extends OAuth2Authenticator implements Keycloak
 {
     public function __construct(
         private readonly KeycloakClient $keycloakClient,
-        private readonly UserRepository $userRepository,
+        private readonly UserProvider $userProvider,
     ) {
     }
 
@@ -44,13 +44,15 @@ class KeycloakAdminAuthenticator extends OAuth2Authenticator implements Keycloak
                     throw new RuntimeException('Keycloak user not found.');
                 }
 
+                $userData = $keycloakUser->toArray();
+
                 $email = $keycloakUser->getEmail();
 
                 if (is_null($email)) {
                     throw new InvalidArgumentException('Keycloak user email not found.');
                 }
 
-                $user = $this->userRepository->findOneByEmail($email);
+                $user = $this->userProvider->createOrUpdateFromKeycloak($userData);
 
                 if (!$user instanceof User) {
                     throw new RuntimeException('User not found.');

@@ -86,16 +86,8 @@
 - [ ] Verify PKCE flow works end-to-end (login → callback → session)
 
 ## Phase 11: RBAC + EasyAdmin Admin Panel  🟡 (in progress)
-- [x] Define role-to-permission mapping config (YAML or PHP enum)
-- [x] Implement PermissionProvider — extracts realm roles from ID token, maps to permissions, stores in session
-- [x] Integrate permission extraction into authentication flow (KeycloakAuthenticator)
-- [x] Wire PermissionVoter to read from session-stored permissions
-- [x] Add granular client roles in `symfony-bff` (e.g. `user.view`, `user.manage`, `settings.view`)
-- [x] Install EasyAdmin bundle
-- [x] Configure EasyAdmin dashboard on `/admin`
-- [x] Create EasyAdmin Dashboard controller
-- [x] Create EasyAdmin CRUD controllers for User entity
-- [x] Secure EasyAdmin with PermissionVoter (`adminPanel.access`)
-- [x] Fix security.yaml admin firewall — consolidate into main firewall
+- [x] Role-to-permission mapping, PermissionProvider, PermissionVoter, client roles
+- [x] EasyAdmin: install, dashboard, CRUD controllers for User entity
+- [x] Security: firewall consolidation, PermissionVoter integration
 - [ ] Add Redis service to Docker Compose for permission caching (optional)
 - [ ] Verify end-to-end: login → /admin dashboard → CRUD operations → role-based access restrictions
