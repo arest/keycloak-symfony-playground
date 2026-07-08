@@ -47,7 +47,7 @@ class PermissionProvider
         }
 
         // Cold cache — compute from user roles and populate
-        $permissions = $this->rolePermissionMapper->resolve($user->getRoles());
+        $permissions = $user->getRoles();
         $this->permissionCache->setPermissions($permissions);
 
         return $permissions;
@@ -61,21 +61,7 @@ class PermissionProvider
      */
     public function setUserPermissions(User $user): void
     {
-        $permissions = $this->rolePermissionMapper->resolve($user->getRoles());
+        $permissions = $user->getRoles();
         $this->permissionCache->setPermissions($permissions);
-    }
-
-    /**
-     * Compute permissions from raw Symfony roles (no User entity needed).
-     *
-     * Used during authentication when the User entity is being created.
-     *
-     * @param list<string> $symfonyRoles
-     *
-     * @return list<string>
-     */
-    public function computeFromRoles(array $symfonyRoles): array
-    {
-        return $this->rolePermissionMapper->resolve($symfonyRoles);
     }
 }

@@ -21,6 +21,11 @@ readonly class UserManager
      * The input model is expected to have been validated before being passed
      * here. When a property on the model is null, the corresponding value on
      * the existing User entity is left unchanged.
+     *
+     * Role resolution priority:
+     *   1. Client roles (from resource_access.symfony-bff.roles) — granular
+     *   2. Realm roles (backward compatible fallback)
+     * Both are merged when present.
      */
     public function createOrUpdate(UserCreateModel $data): User
     {
@@ -44,9 +49,18 @@ readonly class UserManager
             $user->setUsername($data->username);
         }
 
-        if ($data->realmRoles !== null) {
-            $user->setRoles($this->mapRoles($data->realmRoles));
+        // Collect roles from both client and realm sources
+        $roles = ['ROLE_USER'];
+
+        if ($data->clientRoles !== null) {
+            $roles = array_merge($roles, $data->clientRoles);
         }
+
+        if ($data->realmRoles !== null) {
+            $roles = array_merge($roles, $data->realmRoles);
+        }
+
+        $user->setRoles(array_values(array_unique($roles)));
 
         // Update last login timestamp
         $user->setLastLogin(new \DateTimeImmutable());
@@ -54,30 +68,5 @@ readonly class UserManager
         $this->userRepository->save($user);
 
         return $user;
-    }
-
-    /**
-     * Map Keycloak role names to Symfony roles.
-     *
-     * @param list<string> $realmRoles
-     * @return list<string>
-     */
-    private function mapRoles(array $realmRoles): array
-    {
-        $roles = ['ROLE_USER'];
-
-        foreach ($realmRoles as $role) {
-            $mapped = match (strtoupper($role)) {
-                'USER' => 'ROLE_USER',
-                'ADMIN' => 'ROLE_ADMIN',
-                default => null,
-            };
-
-            if ($mapped !== null) {
-                $roles[] = $mapped;
-            }
-        }
-
-        return array_values(array_unique($roles));
     }
 }

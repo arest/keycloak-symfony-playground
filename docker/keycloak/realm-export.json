@@ -135,6 +135,59 @@
           "composite": false,
           "clientRole": true,
           "containerId": "a1b2c3d4-ffff-0000-0000-000000100002"
+        },
+        {
+          "id": "a1b2c3d4-0002-0000-0000-000000000010",
+          "name": "user-create",
+          "description": "Create new users",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "a1b2c3d4-ffff-0000-0000-000000100002"
+        },
+        {
+          "id": "a1b2c3d4-0002-0000-0000-000000000011",
+          "name": "user-edit",
+          "description": "Edit existing users",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "a1b2c3d4-ffff-0000-0000-000000100002"
+        },
+        {
+          "id": "a1b2c3d4-0002-0000-0000-000000000012",
+          "name": "marketing",
+          "description": "Marketing department — composite: admin-panel-access, user-view",
+          "composite": true,
+          "composites": {
+            "client": {
+              "symfony-bff": [
+                "admin-panel-access",
+                "user-view"
+              ]
+            }
+          },
+          "clientRole": true,
+          "containerId": "a1b2c3d4-ffff-0000-0000-000000100002"
+        },
+        {
+          "id": "a1b2c3d4-0002-0000-0000-000000000013",
+          "name": "administrator",
+          "description": "Full system administrator — composite: all permissions",
+          "composite": true,
+          "composites": {
+            "client": {
+              "symfony-bff": [
+                "admin-panel-access",
+                "user-create",
+                "user-edit",
+                "user-view",
+                "user-delete",
+                "settings-view",
+                "settings-edit"
+              ]
+            }
+          },
+          "clientRole": true,
+          "containerId": "a1b2c3d4-ffff-0000-0000-000000100002"
         }
       ],
       "realm-management": [
@@ -272,7 +325,34 @@
       ]
     }
   },
-  "groups": [],
+  "groups": [
+    {
+      "id": "c1b2c3d4-0001-0000-0000-000000000001",
+      "name": "/Marketing",
+      "path": "/Marketing",
+      "attributes": {},
+      "realmRoles": [],
+      "clientRoles": {
+        "symfony-bff": [
+          "marketing"
+        ]
+      },
+      "subGroups": []
+    },
+    {
+      "id": "c1b2c3d4-0001-0000-0000-000000000002",
+      "name": "/Administration",
+      "path": "/Administration",
+      "attributes": {},
+      "realmRoles": [],
+      "clientRoles": {
+        "symfony-bff": [
+          "administrator"
+        ]
+      },
+      "subGroups": []
+    }
+  ],
   "defaultRole": {
     "id": "a1b2c3d4-0001-0000-0000-000000000003",
     "name": "default-roles-playground",
@@ -334,7 +414,57 @@
         ]
       },
       "requiredActions": [],
-      "groups": []
+      "groups": [
+        "/Administration"
+      ]
+    },
+    {
+      "id": "b1b2c3d4-0001-0000-0000-000000000003",
+      "username": "admin2",
+      "email": "admin2@playground.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "Two",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin2",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER"
+      ],
+      "clientRoles": {},
+      "requiredActions": [],
+      "groups": [
+        "/Administration"
+      ]
+    },
+    {
+      "id": "b1b2c3d4-0001-0000-0000-000000000004",
+      "username": "user3",
+      "email": "user3@playground.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "User",
+      "lastName": "Three",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user3",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "USER"
+      ],
+      "clientRoles": {},
+      "requiredActions": [],
+      "groups": [
+        "/Marketing"
+      ]
     }
   ],
   "clients": [

@@ -5,54 +5,47 @@ declare(strict_types=1);
 namespace App\Core\AccessControl\Permission\Config;
 
 /**
- * Maps Symfony roles (e.g. ROLE_ADMIN) to granular application permissions
- * based on the `app.permissions.mapping` parameter defined in
- * config/packages/permissions.yaml.
+ * Resolves Symfony roles (e.g. ROLE_ADMIN) to granular application permissions,
+ * and provides the authoritative list of all known permissions via reflection
+ * on PermissionStorageInterface implementations.
+ *
+ * Permission storage classes are auto-discovered via tagged DI services
+ * and their public string constants are extracted using PHP reflection.
+ *
+ * The role → permission mapping itself is still driven by the YAML config
+ * parameter (%app.permissions.mapping%) until Phase 2 of the Keycloak
+ * client-role migration removes the indirection entirely.
  */
 final readonly class RolePermissionMapper
 {
     /**
-     * @param array<string, list<string>> $mapping role => list of permissions
+     * @param iterable<PermissionStorageInterface> $storages tagged DI collection of storage classes
      */
     public function __construct(
-        private array $mapping = [],
+        private iterable $storages = [],
     ) {
     }
 
     /**
-     * Resolve all permissions for a given set of Symfony roles.
+     * Discover all known permission identifiers via reflection on every
+     * registered PermissionStorageInterface implementation.
      *
-     * Deduplicates and returns a flat list of permission strings.
-     *
-     * @param list<string> $symfonyRoles e.g. ['ROLE_USER', 'ROLE_ADMIN']
+     * Public string constants are collected from each storage class,
+     * replacing the previous approach that parsed the YAML mapping.
      *
      * @return list<string>
-     */
-    public function resolve(array $symfonyRoles): array
-    {
-        $permissions = [];
-
-        foreach ($symfonyRoles as $role) {
-            if (isset($this->mapping[$role])) {
-                foreach ($this->mapping[$role] as $permission) {
-                    $permissions[] = $permission;
-                }
-            }
-        }
-
-        return array_values(array_unique($permissions));
-    }
-
-    /**
-     * @return list<string> All known permission identifiers
      */
     public function getDefinedPermissions(): array
     {
         $all = [];
 
-        foreach ($this->mapping as $permissions) {
-            foreach ($permissions as $permission) {
-                $all[] = $permission;
+        foreach ($this->storages as $storage) {
+            $ref = new \ReflectionClass($storage::class);
+
+            foreach ($ref->getReflectionConstants() as $const) {
+                if ($const->isPublic() && \is_string($const->getValue())) {
+                    $all[] = $const->getValue();
+                }
             }
         }
 

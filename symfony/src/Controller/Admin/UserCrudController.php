@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Core\AccessControl\Permission\Config\GeneralPermissionStorage;
+use App\Core\AccessControl\Permission\Config\UserPermissionStorage;
 use App\Entity\User;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -23,7 +23,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Permissions are enforced via Symfony security attributes so that
  * the PermissionVoter checks each operation at runtime.
  */
-#[IsGranted(GeneralPermissionStorage::USER_VIEW)]
+#[IsGranted(UserPermissionStorage::USER_VIEW)]
 class UserCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
@@ -83,10 +83,10 @@ class UserCrudController extends AbstractCrudController
 
         return $actions
             ->add(Crud::PAGE_INDEX, $viewUser)
-            ->setPermission(Action::DELETE, GeneralPermissionStorage::USER_DELETE)
-            ->setPermission(Action::EDIT, GeneralPermissionStorage::USER_MANAGE)
-            ->setPermission(Action::NEW, GeneralPermissionStorage::USER_MANAGE)
-            ->setPermission(Action::BATCH_DELETE, GeneralPermissionStorage::USER_DELETE)
+            ->setPermission(Action::DELETE, UserPermissionStorage::USER_DELETE)
+            ->setPermission(Action::EDIT, UserPermissionStorage::USER_MANAGE)
+            ->setPermission(Action::NEW, UserPermissionStorage::USER_MANAGE)
+            ->setPermission(Action::BATCH_DELETE, UserPermissionStorage::USER_DELETE)
         ;
     }
 }

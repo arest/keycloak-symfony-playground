@@ -13,7 +13,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 final readonly class UserCreateModel
 {
     /**
-     * @param list<string>|null $realmRoles Raw Keycloak role names (e.g. 'USER', 'ADMIN')
+     * @param list<string>|null $realmRoles  Raw Keycloak realm role names (e.g. 'USER', 'ADMIN')
+     * @param list<string>|null $clientRoles Raw Keycloak client role names for symfony-bff
+     *                                        (e.g. 'admin-panel-access', 'user-view')
      */
     public function __construct(
         #[Assert\Length(max: 255)]
@@ -31,6 +33,12 @@ final readonly class UserCreateModel
          */
         #[Assert\All([new Assert\Type('string')])]
         public ?array $realmRoles = null,
+
+        /**
+         * @var list<string>|null
+         */
+        #[Assert\All([new Assert\Type('string')])]
+        public ?array $clientRoles = null,
     ) {
     }
 }

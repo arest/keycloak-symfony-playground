@@ -75,11 +75,16 @@ services:
 
     # ── RBAC / Permission services ─────────────────────────────────
     #
-    # RolePermissionMapper receives the YAML mapping so it's not tied
-    # to a bundle extension — just DI + parameter.
+    # Auto-tag every PermissionStorageInterface implementation so
+    # RolePermissionMapper can discover all permission constants via
+    # reflection without manually listing storage classes.
+    _instanceof:
+        App\Core\AccessControl\Permission\Config\PermissionStorageInterface:
+            tags: ['app.permission_storage']
+
     App\Core\AccessControl\Permission\Config\RolePermissionMapper:
         arguments:
-            $mapping: '%app.permissions.mapping%'
+            $storages: !tagged_iterator app.permission_storage
 
     # Bind the cache interface to the session-backed implementation.
     # Swap to a Redis-backed implementation here when needed.

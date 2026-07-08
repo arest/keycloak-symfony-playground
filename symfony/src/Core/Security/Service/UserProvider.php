@@ -52,6 +52,9 @@ class UserProvider implements UserProviderInterface
     /**
      * Create or update a User entity from Keycloak token user data.
      *
+     * Extracts both realm roles and client roles (from resource_access)
+     * so the UserManager can map the granular client roles to Symfony roles.
+     *
      * @param array<string, mixed> $userData The decoded user info from the Keycloak token
      */
     public function createOrUpdateFromKeycloak(array $userData): User
@@ -65,6 +68,8 @@ class UserProvider implements UserProviderInterface
                 username: $userData['preferred_username'] ?? $userData['email'] ?? $keycloakId,
                 realmRoles: $userData['realm_roles']
                     ?? $userData['realm_access']['roles']
+                    ?? null,
+                clientRoles: $userData['resource_access']['symfony-bff']['roles']
                     ?? null,
             )
         );
